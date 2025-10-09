@@ -4,14 +4,23 @@ import { getApps, initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import RTCService from "./services/rtc.js";
 
+const {
+  VITE_API_KEY,
+  VITE_AUTH_DOMAIN,
+  VITE_PROJECT_ID,
+  VITE_STORAGE_BUCKET,
+  VITE_MESSAGING_SENDER_ID,
+  VITE_APP_ID
+} = import.meta.env;
+
 // Firebase config
 const firebaseConfig = {
-  apiKey: "AIzaSyBAXkRqyNTCeeXk-CzH46Cu4c5tm3qvP8g",
-  authDomain: "fir-webrtc-2b3e7.firebaseapp.com",
-  projectId: "fir-webrtc-2b3e7",
-  storageBucket: "fir-webrtc-2b3e7.firebasestorage.app",
-  messagingSenderId: "1060633498945",
-  appId: "1:1060633498945:web:823849d54195e8230d3dc0"
+  apiKey: VITE_API_KEY,
+  authDomain: VITE_AUTH_DOMAIN,
+  projectId: VITE_PROJECT_ID,
+  storageBucket: VITE_STORAGE_BUCKET,
+  messagingSenderId: VITE_MESSAGING_SENDER_ID,
+  appId: VITE_APP_ID
 };
 
 // Initialize Firebase
