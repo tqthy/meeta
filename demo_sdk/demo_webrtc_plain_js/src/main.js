@@ -2,7 +2,7 @@
 import "./style.css";
 import { getApps, initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
-import RTCService from "./rtc.js";
+import RTCService from "./services/rtc.js";
 
 // Firebase config
 const firebaseConfig = {
