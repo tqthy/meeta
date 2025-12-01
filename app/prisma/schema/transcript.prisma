@@ -1,0 +1,60 @@
+// Transcription Models
+// Real-time transcription and speaker diarization
+
+enum TranscriptStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model Transcript {
+  id String @id @default(cuid())
+
+  meetingId String  @unique
+  meeting   Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  // Full transcript text (compiled from segments)
+  fullText String? @db.Text
+
+  // Structured segments with speaker info
+  segments TranscriptSegment[]
+
+  // Processing status
+  status TranscriptStatus @default(PENDING)
+
+  // Metadata
+  language  String @default("en-US")
+  wordCount Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TranscriptSegment {
+  id String @id @default(cuid())
+
+  transcriptId String
+  transcript   Transcript @relation(fields: [transcriptId], references: [id], onDelete: Cascade)
+
+  // Speaker info
+  speakerId   Int // Diarization speaker ID (0, 1, 2, ...)
+  speakerName String? // Resolved participant name
+
+  // Timing (seconds from meeting start)
+  startTime Float
+  endTime   Float
+
+  // Content
+  text       String @db.Text
+  confidence Float? // Transcription confidence score (0-1)
+
+  // Word-level timing (optional, for precise highlighting)
+  words Json? // Array of {word, start, end, confidence}
+
+  createdAt DateTime @default(now())
+
+  @@index([transcriptId])
+  @@index([speakerId])
+  @@index([startTime])
+}

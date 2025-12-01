@@ -1,0 +1,73 @@
+// Meeting Models
+// Core meeting functionality and participants
+
+enum MeetingStatus {
+  SCHEDULED
+  ACTIVE
+  ENDED
+  CANCELLED
+}
+
+enum ParticipantRole {
+  HOST
+  CO_HOST
+  PARTICIPANT
+}
+
+model Meeting {
+  id          String  @id @default(cuid())
+  roomName    String  @unique // Jitsi room identifier
+  title       String
+  description String?
+
+  // Scheduling
+  scheduledAt DateTime?
+  startedAt   DateTime?
+  endedAt     DateTime?
+  duration    Int? // Duration in seconds
+
+  // Status
+  status MeetingStatus @default(SCHEDULED)
+
+  // Host
+  hostId String
+  host   user   @relation("MeetingHost", fields: [hostId], references: [id])
+
+  // Relations
+  participants MeetingParticipant[]
+  transcript   Transcript?
+  summary      Summary?
+  recordings   Recording[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([hostId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([roomName])
+}
+
+model MeetingParticipant {
+  id String @id @default(cuid())
+
+  meetingId String
+  meeting   Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  userId String? // Nullable for anonymous/guest participants
+  user   user?   @relation(fields: [userId], references: [id])
+
+  displayName String
+  email       String?
+  role        ParticipantRole @default(PARTICIPANT)
+
+  joinedAt DateTime  @default(now())
+  leftAt   DateTime?
+
+  // Speaker identification for diarization
+  speakerId Int? // Deepgram speaker ID mapping
+
+  @@unique([meetingId, userId])
+  @@index([meetingId])
+  @@index([userId])
+}

@@ -1,0 +1,40 @@
+// Recording Models
+// Video and audio recording management
+
+enum RecordingType {
+  VIDEO
+  AUDIO
+  SCREEN
+}
+
+enum RecordingStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+}
+
+model Recording {
+  id String @id @default(cuid())
+
+  meetingId String
+  meeting   Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  // Storage info
+  url      String
+  filename String?
+  format   String // e.g., "webm", "mp4", "mp3"
+  size     Int? // File size in bytes
+  duration Int? // Duration in seconds
+
+  // Type of recording
+  type RecordingType @default(VIDEO)
+
+  // Processing status (for audio extraction)
+  status RecordingStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([meetingId])
+}
