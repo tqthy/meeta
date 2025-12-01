@@ -1,0 +1,41 @@
+// AI Summary Models
+// Meeting summaries, action items, and insights
+
+enum SummaryStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model Summary {
+  id String @id @default(cuid())
+
+  meetingId String  @unique
+  meeting   Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  // Summary content
+  title    String
+  overview String @db.Text
+
+  // Structured data (stored as JSON arrays)
+  keyPoints   Json // Array of key discussion points
+  actionItems Json // Array of {task, assignee?, dueDate?, completed}
+  decisions   Json // Array of decisions made
+  nextSteps   Json? // Array of follow-up items
+
+  // Attendee summary
+  attendees Json? // Array of {name, role, speakingTime?}
+
+  // AI metadata
+  model         String // e.g., "gpt-4o", "claude-3.5-sonnet"
+  promptVersion String? // Version of prompt template used
+  tokensUsed    Int?
+
+  // Processing status
+  status SummaryStatus @default(PENDING)
+  error  String? // Error message if failed
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
