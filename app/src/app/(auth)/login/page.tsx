@@ -16,8 +16,10 @@ export default async function LoginPage() {
     const session = await auth.api.getSession({
         headers: await headers(),
     })
+    console.log('DEBUG session for /dashboard:', session)
 
-    if (session?.user) {
+    if (session && session?.user) {
+        console.log('DEBUG: user exists, redirect to /dashboard')
         redirect('/dashboard')
     }
 
