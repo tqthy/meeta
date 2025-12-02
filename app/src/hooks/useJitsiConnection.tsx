@@ -63,6 +63,7 @@ export const useJitsiConnection = ({
     const jitsiServiceRef = useRef<JitsiService | null>(null)
     const mediaManagerRef = useRef<MediaManager | null>(null)
     const isInitializedRef = useRef(false)
+    const previousStatesRef = useRef({ cameraEnabled, micEnabled })
 
     // Store callbacks in refs
     const callbacksRef = useRef({
@@ -224,15 +225,17 @@ export const useJitsiConnection = ({
 
     // Handle camera toggle
     useEffect(() => {
-        if (mediaManagerRef.current) {
+        if (mediaManagerRef.current && cameraEnabled !== previousStatesRef.current.cameraEnabled) {
             mediaManagerRef.current.setCamera(cameraEnabled)
+            previousStatesRef.current.cameraEnabled = cameraEnabled
         }
     }, [cameraEnabled])
 
     // Handle mic toggle
     useEffect(() => {
-        if (mediaManagerRef.current) {
+        if (mediaManagerRef.current && micEnabled !== previousStatesRef.current.micEnabled) {
             mediaManagerRef.current.setMic(micEnabled)
+            previousStatesRef.current.micEnabled = micEnabled
         }
     }, [micEnabled])
 
