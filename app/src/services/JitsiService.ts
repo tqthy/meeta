@@ -16,6 +16,7 @@ import {
     incrementRetryCount,
     resetRetryCount,
     clearParticipants,
+    ParticipantRole,
 } from '@/store/slices/connectionSlice'
 import type { ConnectionError } from '@/store/slices/connectionSlice'
 
@@ -69,9 +70,8 @@ export class JitsiService {
                     enableAnalyticsLogging: false,
                 })
                 JitsiMeetJS.setLogLevel(JitsiMeetJS.logLevels.ERROR)
-                console.log('[JitsiService] JitsiMeetJS initialized')
-            } catch (error) {
-                console.error('[JitsiService] Init failed:', error)
+            } catch {
+                // Initialization failed
             }
         }
     }
@@ -100,16 +100,18 @@ export class JitsiService {
         const baseUrl =
             process.env.NEXT_PUBLIC_JITSI_WS_URL || 'ws://localhost:8000'
         const keepAliveUrl = baseUrl
-            .replace('ws://', 'http://')
             .replace('wss://', 'https://')
+            .replace('ws://', 'http://')
+            .replace('/xmpp-websocket', '')
 
         return {
             hosts: {
                 domain: 'meet.jitsi',
                 muc: 'muc.meet.jitsi',
             },
-            serviceUrl: `${baseUrl}/xmpp-websocket?room=${roomName}`,
+            serviceUrl: `${baseUrl}?room=${roomName}`,
             websocketKeepAliveUrl: `${keepAliveUrl}/xmpp-websocket`,
+            appId: null,
         }
     }
 
@@ -122,7 +124,6 @@ export class JitsiService {
         }
 
         if (this.connection) {
-            console.warn('[JitsiService] Connection already exists')
             return
         }
 
@@ -131,7 +132,6 @@ export class JitsiService {
         this.dispatch(setConnecting(true))
 
         try {
-            console.log('[JitsiService] Creating connection...')
             const connectionOptions = this.buildConnectionOptions(roomName)
             const jitsiJwt = jwt || process.env.NEXT_PUBLIC_JITSI_JWT || null
 
@@ -147,7 +147,6 @@ export class JitsiService {
             // Connect
             this.connection.connect()
         } catch (error) {
-            console.error('[JitsiService] Connection error:', error)
             this.dispatch(setConnecting(false))
             throw error
         }
@@ -182,8 +181,6 @@ export class JitsiService {
      * Handle connection established
      */
     private handleConnectionEstablished(): void {
-        console.log('[JitsiService] Connection established!')
-
         this.dispatch(setConnected(true))
         this.dispatch(resetRetryCount())
 
@@ -203,12 +200,6 @@ export class JitsiService {
         errorMessage: string,
         ...params: any[]
     ): void {
-        console.error('[JitsiService] Connection failed!', {
-            errorCode,
-            errorMessage,
-            params,
-        })
-
         const error: ConnectionError = {
             name: errorCode,
             message: errorMessage,
@@ -226,17 +217,12 @@ export class JitsiService {
                 5000
             )
 
-            console.log(
-                `[JitsiService] Retrying in ${retryDelay}ms (attempt ${state.retryCount + 1}/${this.maxRetries})`
-            )
-
             this.retryTimeoutId = setTimeout(() => {
                 if (this.connection) {
                     this.connection.connect()
                 }
             }, retryDelay)
         } else {
-            console.error('[JitsiService] Max retry attempts reached')
             this.onConnectionFailedCallback?.(error)
         }
     }
@@ -245,7 +231,6 @@ export class JitsiService {
      * Handle connection disconnected
      */
     private handleConnectionDisconnected(): void {
-        console.log('[JitsiService] Connection disconnected')
         this.dispatch(setConnected(false))
     }
 
@@ -261,14 +246,12 @@ export class JitsiService {
         }
 
         if (this.conference) {
-            console.warn('[JitsiService] Already in conference')
             return
         }
 
         this.dispatch(setJoining(true))
 
         try {
-            console.log('[JitsiService] Creating conference...')
             this.conference = this.connection.initJitsiConference(
                 this.roomName.toLowerCase(),
                 {
@@ -289,7 +272,6 @@ export class JitsiService {
             // Note: Tracks are added in CONFERENCE_JOINED handler
             this.addTracksToConference(localTracks)
         } catch (error) {
-            console.error('[JitsiService] Join conference error:', error)
             this.dispatch(setJoining(false))
             throw error
         }
@@ -360,7 +342,6 @@ export class JitsiService {
      * Handle conference joined
      */
     private handleConferenceJoined(): void {
-        console.log('[JitsiService] Conference joined!')
         this.dispatch(setJoined(true))
         this.onConferenceJoinedCallback?.(this.roomName)
     }
@@ -369,7 +350,6 @@ export class JitsiService {
      * Handle conference left
      */
     private handleConferenceLeft(): void {
-        console.log('[JitsiService] Conference left!')
         this.dispatch(setJoined(false))
         this.dispatch(clearParticipants())
         this.onConferenceLeftCallback?.(this.roomName)
@@ -383,12 +363,6 @@ export class JitsiService {
         errorMessage: string,
         ...params: any[]
     ): void {
-        console.error('[JitsiService] Conference failed!', {
-            errorCode,
-            errorMessage,
-            params,
-        })
-
         const error: ConnectionError = {
             name: errorCode,
             message: errorMessage,
@@ -406,13 +380,13 @@ export class JitsiService {
         const participant = this.conference.getParticipantById(id)
         const displayName = participant?.getDisplayName() || id
 
-        console.log('[JitsiService] User joined:', displayName, '(', id, ')')
-
         this.dispatch(
             addParticipant({
                 id,
                 displayName,
+                role: ParticipantRole.PARTICIPANT,
                 isDominantSpeaker: false,
+                joinedAt: Date.now(),
             })
         )
     }
@@ -421,7 +395,6 @@ export class JitsiService {
      * Handle user left
      */
     private handleUserLeft(id: string): void {
-        console.log('[JitsiService] User left:', id)
         this.dispatch(removeParticipant(id))
     }
 
@@ -429,7 +402,6 @@ export class JitsiService {
      * Handle display name changed
      */
     private handleDisplayNameChanged(id: string, displayName: string): void {
-        console.log('[JitsiService] Display name changed:', id, displayName)
         this.dispatch(updateParticipant({ id, updates: { displayName } }))
     }
 
@@ -437,7 +409,6 @@ export class JitsiService {
      * Handle dominant speaker changed
      */
     private handleDominantSpeakerChanged(id: string): void {
-        console.log('[JitsiService] Dominant speaker:', id)
         this.dispatch(setDominantSpeaker(id))
     }
 
@@ -445,7 +416,6 @@ export class JitsiService {
      * Handle connection interrupted
      */
     private handleConnectionInterrupted(): void {
-        console.warn('[JitsiService] Connection interrupted')
         this.dispatch(setConnectionInterrupted(true))
     }
 
@@ -453,7 +423,6 @@ export class JitsiService {
      * Handle connection restored
      */
     private handleConnectionRestored(): void {
-        console.log('[JitsiService] Connection restored')
         this.dispatch(setConnectionInterrupted(false))
     }
 
@@ -464,11 +433,9 @@ export class JitsiService {
         if (!this.conference) return
 
         tracks.forEach((track) => {
-            this.conference
-                .addTrack(track)
-                .catch((error: any) => {
-                    console.error('[JitsiService] Failed to add track:', error)
-                })
+            this.conference.addTrack(track).catch(() => {
+                // Failed to add track
+            })
         })
     }
 
@@ -477,16 +444,14 @@ export class JitsiService {
      */
     async leaveConference(): Promise<void> {
         if (!this.conference) {
-            console.warn('[JitsiService] No conference to leave')
             return
         }
 
         try {
-            console.log('[JitsiService] Leaving conference...')
             await this.conference.leave()
             this.conference = null
-        } catch (error) {
-            console.error('[JitsiService] Failed to leave conference:', error)
+        } catch {
+            // Failed to leave conference
         }
     }
 
@@ -495,11 +460,8 @@ export class JitsiService {
      */
     disconnect(): void {
         if (!this.connection) {
-            console.warn('[JitsiService] No connection to disconnect')
             return
         }
-
-        console.log('[JitsiService] Disconnecting...')
 
         // Clear retry timeout
         if (this.retryTimeoutId) {
@@ -530,7 +492,6 @@ export class JitsiService {
      * Complete cleanup
      */
     async cleanup(): Promise<void> {
-        console.log('[JitsiService] Complete cleanup...')
         await this.leaveConference()
         this.disconnect()
     }

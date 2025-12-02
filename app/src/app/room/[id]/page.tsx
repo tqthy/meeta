@@ -1,11 +1,11 @@
 ﻿'use client'
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useJitsiConnection } from '@/hooks/useJitsiConnection'
 import { useParticipantsManager } from '@/hooks/useParticipantsManager'
-import { useAppSelector } from '@/store'
+import { useAppSelector, useAppDispatch } from '@/store'
+import { setMicEnabled, setCameraEnabled } from '@/store/slices/mediaSlice'
 import { ControlBar } from './components/control-panel'
 import { ParticipantsPanel } from './components/participant-panel'
 import { ChatPanel } from './components/chat-panel'
@@ -19,41 +19,28 @@ type LayoutType = 'auto' | 'grid' | 'sidebar' | 'spotlight'
 export default function RoomPage() {
     const params = useParams()
     const router = useRouter()
+    const dispatch = useAppDispatch()
     const roomName = params.id as string
 
+    // UI States
     const [userName, setUserName] = useState('')
-    const [cameraEnabled, setCameraEnabled] = useState(true)
-    const [micEnabled, setMicEnabled] = useState(true)
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    const [room, setRoom] = useState<any | null>(null)
     const [showParticipants, setShowParticipants] = useState(false)
     const [showChat, setShowChat] = useState(false)
     const [showSettings, setShowSettings] = useState(false)
     const [showGridLayout, setShowGridLayout] = useState(false)
     const [currentLayout, setCurrentLayout] = useState<LayoutType>('grid')
     const [messagesList] = useState(messages)
-    const [room, setRoom] = useState<any | null>(null)
-    const mediaStreamRef = useRef<MediaStream | null>(null)
 
-    // Cleanup media streams khi component bị unmount (người dùng rời khỏi phòng)
-    useEffect(() => {
-        const currentMediaStream = mediaStreamRef.current
+    // Media state from Redux
+    const { localTracks, micEnabled, cameraEnabled } = useAppSelector(
+        (state) => state.media
+    )
 
-        return () => {
-            console.log('[RoomPage] Cleaning up media streams on unmount')
-            // Ngắt kết nối tất cả media streams
-            if (currentMediaStream) {
-                currentMediaStream.getTracks().forEach((track) => {
-                    track.stop()
-                    console.log('[RoomPage] Stopped track:', track.kind)
-                })
-            }
-            // Xóa quyền truy cập từ sessionStorage
-            sessionStorage.removeItem('cameraPermission')
-            sessionStorage.removeItem('micPermission')
-            sessionStorage.removeItem('cameraEnabled')
-            sessionStorage.removeItem('micEnabled')
-        }
-    }, [])
+    const [cameraActive, setCameraActive] = useState<boolean>(cameraEnabled)
 
+    // Initialize user preferences
     useEffect(() => {
         const storedUserName = sessionStorage.getItem('userName') || 'Guest'
         const storedCameraEnabled =
@@ -61,148 +48,104 @@ export default function RoomPage() {
         const storedMicEnabled = sessionStorage.getItem('micEnabled') === 'true'
 
         setUserName(storedUserName)
-        setCameraEnabled(storedCameraEnabled)
-        setMicEnabled(storedMicEnabled)
+        dispatch(setCameraEnabled(storedCameraEnabled))
+        dispatch(setMicEnabled(storedMicEnabled))
+    }, [dispatch])
 
-        console.log(
-            '[RoomPage] Loaded preferences - Camera:',
-            storedCameraEnabled,
-            'Mic:',
-            storedMicEnabled
-        )
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            sessionStorage.removeItem('cameraPermission')
+            sessionStorage.removeItem('micPermission')
+        }
     }, [])
 
+    // Jitsi connection
     const { isConnected, isJoined, disconnect } = useJitsiConnection({
         roomName: roomName || '',
         userName,
         cameraEnabled,
         micEnabled,
-        onConferenceJoined: (roomObj) => {
-            console.log('[Room] Joined conference:', roomObj)
+        onConferenceJoined: useCallback((roomObj: any) => {
+            console.log('[Room] Joined conference')
             setRoom(roomObj)
-        },
-        onConferenceLeft: () => {
+        }, []),
+        onConferenceLeft: useCallback(() => {
             console.log('[Room] Left conference')
             router.push('/dashboard/meetings')
-        },
-        onConferenceFailed: (error) => {
-            console.error('[Room] Conference failed:', error)
-            alert('Failed to join meeting: ' + error.message)
-            router.push('/dashboard/meetings')
-        },
+        }, [router]),
+        onConferenceFailed: useCallback(
+            (error: Error) => {
+                console.error('[Room] Conference failed:', error)
+                alert('Failed to join meeting: ' + error.message)
+                router.push('/dashboard/meetings')
+            },
+            [router]
+        ),
     })
 
-    // Get local tracks and media state from Redux
-    const { localTracks, micEnabled: redisMicEnabled, cameraEnabled: redisCameraEnabled } = useAppSelector((state) => state.media)
-
-    // Use participants manager hook
+    // Participants management
     const { allParticipants } = useParticipantsManager({
         room,
         userName,
         localTracks,
     })
 
-    // Sync Redux state to component state when Redux changes
-    useEffect(() => {
-        if (redisMicEnabled !== micEnabled) {
-            setMicEnabled(redisMicEnabled)
-            sessionStorage.setItem('micEnabled', String(redisMicEnabled))
-        }
-    }, [redisMicEnabled, micEnabled])
+    // Media control handlers
+    const handleToggleMic = useCallback(() => {
+        const newState = !micEnabled
+        dispatch(setMicEnabled(newState))
+        sessionStorage.setItem('micEnabled', String(newState))
+    }, [micEnabled, dispatch])
 
-    useEffect(() => {
-        if (redisCameraEnabled !== cameraEnabled) {
-            setCameraEnabled(redisCameraEnabled)
-            sessionStorage.setItem('cameraEnabled', String(redisCameraEnabled))
-        }
-    }, [redisCameraEnabled, cameraEnabled])
+    const handleToggleCamera = useCallback(() => {
+        const newState = !cameraEnabled
+        dispatch(setCameraEnabled(newState))
+        sessionStorage.setItem('cameraEnabled', String(newState))
+        setCameraActive(newState)
+    }, [cameraEnabled, dispatch])
 
-    const handleToggleMic = () => {
-        const newMicState = !micEnabled
-        setMicEnabled(newMicState)
-        sessionStorage.setItem('micEnabled', String(newMicState))
-        console.log('[Room] Mic toggled to:', newMicState)
-    }
-
-    const handleToggleCamera = () => {
-        const newCameraState = !cameraEnabled
-        setCameraEnabled(newCameraState)
-        sessionStorage.setItem('cameraEnabled', String(newCameraState))
-        console.log('[Room] Camera toggled to:', newCameraState)
-    }
-
-    const handleLeave = async () => {
+    const handleLeave = useCallback(async () => {
         await disconnect()
-    }
+    }, [disconnect])
 
-    const handleLayoutChange = (layout: LayoutType) => {
+    const handleLayoutChange = useCallback((layout: LayoutType) => {
         setCurrentLayout(layout)
-    }
+    }, [])
 
-    const renderVideoGrid = () => {
-        const gridClasses = {
-            auto: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
-            grid: 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4',
-            sidebar: 'grid-cols-1',
-            spotlight: 'grid-cols-1',
-        }
-
-        if (currentLayout === 'spotlight' && allParticipants.length > 0) {
+    // Render video grid based on layout
+    const renderVideoGrid = useCallback(() => {
+        if (allParticipants.length === 0) {
             return (
-                <div className="w-full h-full flex flex-col">
-                    {/* Main spotlight video */}
-                    <div className="flex-1 mb-4">
-                        <VideoTile
-                            name={allParticipants[0].displayName}
-                            isMuted={allParticipants[0].isMuted}
-                            isActive={true}
-                            isLocalParticipant={
-                                allParticipants[0].isLocalParticipant
-                            }
-                            videoTrack={allParticipants[0].videoTrack}
-                            audioTrack={allParticipants[0].audioTrack}
-                        />
-                    </div>
-                    {/* Sidebar with other participants */}
-                    <div className="grid grid-cols-4 gap-2 h-24">
-                        {allParticipants.slice(1).map((participant) => (
-                            <VideoTile
-                                key={participant.id}
-                                name={participant.displayName}
-                                isMuted={participant.isMuted}
-                                isLocalParticipant={
-                                    participant.isLocalParticipant
-                                }
-                                videoTrack={participant.videoTrack}
-                                audioTrack={participant.audioTrack}
-                            />
-                        ))}
-                    </div>
+                <div className="flex items-center justify-center h-full text-gray-400">
+                    <p>Waiting for participants...</p>
                 </div>
             )
         }
 
-        if (currentLayout === 'sidebar' && allParticipants.length > 0) {
+        // Spotlight layout
+        if (currentLayout === 'spotlight') {
+            const mainParticipant = allParticipants[0]
+            const sidebarParticipants = allParticipants.slice(1)
+
             return (
-                <div className="flex gap-4 h-full">
-                    {/* Main video */}
-                    <div className="flex-1">
+                <div className="w-full h-full flex flex-col">
+                    <div className="flex-1 mb-4">
                         <VideoTile
-                            name={allParticipants[0].displayName}
-                            isMuted={allParticipants[0].isMuted}
-                            isActive={true}
+                            name={mainParticipant.displayName}
+                            isMuted={mainParticipant.isMuted}
                             isLocalParticipant={
-                                allParticipants[0].isLocalParticipant
+                                mainParticipant.isLocalParticipant
                             }
-                            videoTrack={allParticipants[0].videoTrack}
-                            audioTrack={allParticipants[0].audioTrack}
+                            videoTrack={mainParticipant.videoTrack}
+                            audioTrack={mainParticipant.audioTrack}
                         />
                     </div>
-                    {/* Sidebar */}
-                    <div className="w-64 flex flex-col gap-2 overflow-y-auto">
-                        {allParticipants.slice(1).map((participant) => (
-                            <div key={participant.id} className="h-40">
+                    {sidebarParticipants.length > 0 && (
+                        <div className="grid grid-cols-4 gap-2 h-24">
+                            {sidebarParticipants.map((participant) => (
                                 <VideoTile
+                                    key={participant.id}
                                     name={participant.displayName}
                                     isMuted={participant.isMuted}
                                     isLocalParticipant={
@@ -211,11 +154,58 @@ export default function RoomPage() {
                                     videoTrack={participant.videoTrack}
                                     audioTrack={participant.audioTrack}
                                 />
-                            </div>
-                        ))}
-                    </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             )
+        }
+
+        // Sidebar layout
+        if (currentLayout === 'sidebar') {
+            const mainParticipant = allParticipants[0]
+            const sidebarParticipants = allParticipants.slice(1)
+
+            return (
+                <div className="flex gap-4 h-full">
+                    <div className="flex-1">
+                        <VideoTile
+                            name={mainParticipant.displayName}
+                            isMuted={mainParticipant.isMuted}
+                            isLocalParticipant={
+                                mainParticipant.isLocalParticipant
+                            }
+                            videoTrack={mainParticipant.videoTrack}
+                            audioTrack={mainParticipant.audioTrack}
+                        />
+                    </div>
+                    {sidebarParticipants.length > 0 && (
+                        <div className="w-64 flex flex-col gap-2 overflow-y-auto">
+                            {sidebarParticipants.map((participant) => (
+                                <div key={participant.id} className="h-40">
+                                    <VideoTile
+                                        name={participant.displayName}
+                                        isMuted={participant.isMuted}
+                                        isLocalParticipant={
+                                            participant.isLocalParticipant
+                                        }
+                                        videoTrack={participant.videoTrack}
+                                        audioTrack={participant.audioTrack}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )
+        }
+
+        // Grid layout (default and auto)
+        const gridClasses = {
+            auto: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
+            grid: 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4',
+            sidebar: 'grid-cols-1',
+            spotlight: 'grid-cols-1',
         }
 
         return (
@@ -225,7 +215,6 @@ export default function RoomPage() {
                         key={participant.id}
                         name={participant.displayName}
                         isMuted={participant.isMuted}
-                        isActive={participant.isLocalParticipant}
                         isLocalParticipant={participant.isLocalParticipant}
                         videoTrack={participant.videoTrack}
                         audioTrack={participant.audioTrack}
@@ -233,8 +222,9 @@ export default function RoomPage() {
                 ))}
             </div>
         )
-    }
+    }, [allParticipants, currentLayout])
 
+    // Loading state
     if (!isJoined) {
         return (
             <div className="flex items-center justify-center h-screen bg-gray-900">
@@ -256,9 +246,9 @@ export default function RoomPage() {
 
     return (
         <div className="flex h-screen bg-gray-900">
-            {/* Main content area */}
+            {/* Main content */}
             <div className="flex-1 flex flex-col">
-                {/* Video grid area */}
+                {/* Video grid */}
                 <div className="flex-1 p-4 pb-32">{renderVideoGrid()}</div>
 
                 {/* Control bar */}
@@ -294,7 +284,7 @@ export default function RoomPage() {
                 onClose={() => setShowChat(false)}
             />
 
-            {/* Overlay modals */}
+            {/* Modals */}
             <SettingsMenu
                 isOpen={showSettings}
                 onClose={() => setShowSettings(false)}

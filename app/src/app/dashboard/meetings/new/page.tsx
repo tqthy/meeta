@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useState } from 'react'
-import { Video, Mic, MicOff, VideoOff, Check, X } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Video, Mic, Check, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 export default function NewMeetingPage() {
@@ -12,11 +12,80 @@ export default function NewMeetingPage() {
         null
     )
     const [micPermission, setMicPermission] = useState<string | null>(null)
-    const [cameraEnabled, setCameraEnabled] = useState(true)
-    const [micEnabled, setMicEnabled] = useState(true)
     const [isRequesting, setIsRequesting] = useState(false)
 
-    const handleRequestPermissions = async () => {
+    // Cleanup media streams khi component bị unmount (người dùng rời khỏi trang)
+    useEffect(() => {
+        return () => {
+            console.log('[NewMeeting] Cleaning up media permissions on unmount')
+            // Ngắt kết nối bất kỳ media stream nào đang hoạt động
+            if (navigator.mediaDevices) {
+                navigator.mediaDevices.enumerateDevices().then((devices) => {
+                    devices.forEach((device) => {
+                        if (
+                            device.kind === 'videoinput' ||
+                            device.kind === 'audioinput'
+                        ) {
+                            console.log(
+                                '[NewMeeting] Device available:',
+                                device.label
+                            )
+                        }
+                    })
+                })
+            }
+        }
+    }, [])
+
+    const requestCameraPermission = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+            })
+            stream.getTracks().forEach((track) => track.stop())
+            setCameraPermission('granted')
+            return true
+        } catch (error) {
+            console.error('Camera permission denied:', error)
+            setCameraPermission('denied')
+            return false
+        }
+    }
+
+    const requestMicPermission = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: true,
+            })
+            stream.getTracks().forEach((track) => track.stop())
+            setMicPermission('granted')
+            return true
+        } catch (error) {
+            console.error('Microphone permission denied:', error)
+            setMicPermission('denied')
+            return false
+        }
+    }
+
+    const handleRequestCameraOnly = async () => {
+        setIsRequesting(true)
+        try {
+            await requestCameraPermission()
+        } finally {
+            setIsRequesting(false)
+        }
+    }
+
+    const handleRequestMicOnly = async () => {
+        setIsRequesting(true)
+        try {
+            await requestMicPermission()
+        } finally {
+            setIsRequesting(false)
+        }
+    }
+
+    const handleRequestAllPermissions = async () => {
         setIsRequesting(true)
         try {
             // Request camera and microphone permissions using browser API
@@ -33,16 +102,11 @@ export default function NewMeetingPage() {
             stream.getTracks().forEach((track) => track.stop())
         } catch (error) {
             console.error('Permission denied:', error)
-            // Check which permissions were denied
-            if (error instanceof Error) {
-                if (error.name === 'NotAllowedError') {
-                    setCameraPermission('denied')
-                    setMicPermission('denied')
-                } else {
-                    // Other errors (e.g., no devices found)
-                    setCameraPermission('denied')
-                    setMicPermission('denied')
-                }
+            // Try to request individually
+            if (error instanceof Error && error.name === 'NotAllowedError') {
+                // User denied, try individual requests
+                await requestCameraPermission()
+                await requestMicPermission()
             }
         } finally {
             setIsRequesting(false)
@@ -50,14 +114,35 @@ export default function NewMeetingPage() {
     }
 
     const handleJoinRoom = () => {
-        if (!roomName || !userName || !cameraPermission || !micPermission) {
+        if (!roomName || !userName) {
             return
         }
 
         // Store user preferences in sessionStorage
         sessionStorage.setItem('userName', userName)
-        sessionStorage.setItem('cameraEnabled', String(cameraEnabled))
-        sessionStorage.setItem('micEnabled', String(micEnabled))
+        sessionStorage.setItem(
+            'cameraEnabled',
+            String(cameraPermission === 'granted')
+        )
+        sessionStorage.setItem(
+            'micEnabled',
+            String(micPermission === 'granted')
+        )
+        sessionStorage.setItem(
+            'cameraPermission',
+            cameraPermission || 'not-requested'
+        )
+        sessionStorage.setItem(
+            'micPermission',
+            micPermission || 'not-requested'
+        )
+
+        console.log(
+            '[NewMeeting] Joining room with permissions - Camera:',
+            cameraPermission,
+            'Mic:',
+            micPermission
+        )
 
         // Navigate to the room
         router.push(`/room/${encodeURIComponent(roomName)}`)
@@ -217,102 +302,69 @@ export default function NewMeetingPage() {
                             </div>
                         </div>
 
-                        {/* Request Permissions Button */}
-                        {(!cameraPermission || !micPermission) && (
-                            <>
+                        {/* Request Permissions Buttons */}
+                        <div className="flex gap-2">
+                            {cameraPermission !== 'granted' && (
                                 <button
                                     type="button"
-                                    onClick={handleRequestPermissions}
+                                    onClick={handleRequestCameraOnly}
                                     disabled={isRequesting}
-                                    className={`w-full py-2 px-4 rounded-lg transition font-medium ${
+                                    className={`flex-1 py-2 px-4 rounded-lg transition font-medium ${
                                         isRequesting
                                             ? 'dark:bg-indigo-700 dark:text-indigo-300 bg-indigo-200 text-indigo-600 cursor-wait'
                                             : 'dark:bg-indigo-900 dark:text-indigo-200 dark:hover:bg-indigo-800 bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
                                     }`}
                                 >
                                     {isRequesting
-                                        ? 'Requesting...'
-                                        : 'Request Permissions'}
+                                        ? 'Requesting Camera...'
+                                        : 'Request Camera'}
                                 </button>
-                                {cameraPermission === 'denied' &&
-                                    micPermission === 'denied' && (
-                                        <p className="text-sm text-red-500 text-center">
-                                            Permissions denied. Please enable
-                                            camera and microphone in your
-                                            browser settings.
-                                        </p>
-                                    )}
-                            </>
-                        )}
-
-                        {/* Media Toggle Buttons */}
-                        {cameraPermission === 'granted' &&
-                            micPermission === 'granted' && (
-                                <div className="flex gap-3 pt-2">
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            setCameraEnabled(!cameraEnabled)
-                                        }
-                                        className={`flex-1 flex items-center justify-center space-x-2 py-2 px-4 rounded-lg transition ${
-                                            cameraEnabled
-                                                ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-                                                : 'dark:bg-gray-600 dark:text-gray-300 dark:hover:bg-gray-500 bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                        }`}
-                                    >
-                                        {cameraEnabled ? (
-                                            <Video className="w-4 h-4" />
-                                        ) : (
-                                            <VideoOff className="w-4 h-4" />
-                                        )}
-                                        <span className="text-sm font-medium">
-                                            Camera
-                                        </span>
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            setMicEnabled(!micEnabled)
-                                        }
-                                        className={`flex-1 flex items-center justify-center space-x-2 py-2 px-4 rounded-lg transition ${
-                                            micEnabled
-                                                ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-                                                : 'dark:bg-gray-600 dark:text-gray-300 dark:hover:bg-gray-500 bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                        }`}
-                                    >
-                                        {micEnabled ? (
-                                            <Mic className="w-4 h-4" />
-                                        ) : (
-                                            <MicOff className="w-4 h-4" />
-                                        )}
-                                        <span className="text-sm font-medium">
-                                            Mic
-                                        </span>
-                                    </button>
-                                </div>
                             )}
+                            {micPermission !== 'granted' && (
+                                <button
+                                    type="button"
+                                    onClick={handleRequestMicOnly}
+                                    disabled={isRequesting}
+                                    className={`flex-1 py-2 px-4 rounded-lg transition font-medium ${
+                                        isRequesting
+                                            ? 'dark:bg-indigo-700 dark:text-indigo-300 bg-indigo-200 text-indigo-600 cursor-wait'
+                                            : 'dark:bg-indigo-900 dark:text-indigo-200 dark:hover:bg-indigo-800 bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                                    }`}
+                                >
+                                    {isRequesting
+                                        ? 'Requesting Mic...'
+                                        : 'Request Microphone'}
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Request Both Button */}
+                        {(cameraPermission !== 'granted' ||
+                            micPermission !== 'granted') && (
+                            <button
+                                type="button"
+                                onClick={handleRequestAllPermissions}
+                                disabled={isRequesting}
+                                className={`w-full py-2 px-4 rounded-lg transition font-medium ${
+                                    isRequesting
+                                        ? 'dark:bg-indigo-700 dark:text-indigo-300 bg-indigo-200 text-indigo-600 cursor-wait'
+                                        : 'dark:bg-indigo-900 dark:text-indigo-200 dark:hover:bg-indigo-800 bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                                }`}
+                            >
+                                {isRequesting
+                                    ? 'Requesting...'
+                                    : 'Request All Permissions'}
+                            </button>
+                        )}
                     </div>
 
                     {/* Join Button */}
                     <button
                         type="button"
                         onClick={handleJoinRoom}
-                        disabled={
-                            !roomName ||
-                            !userName ||
-                            !cameraPermission ||
-                            !micPermission ||
-                            cameraPermission === 'denied' ||
-                            micPermission === 'denied'
-                        }
+                        disabled={!roomName || !userName}
                         className={`w-full py-3 px-6 rounded-lg font-semibold text-lg transition ${
-                            !roomName ||
-                            !userName ||
-                            !cameraPermission ||
-                            !micPermission ||
-                            cameraPermission === 'denied' ||
-                            micPermission === 'denied'
+                            !roomName || !userName
                                 ? 'dark:bg-gray-600 dark:text-gray-400 dark:cursor-not-allowed bg-gray-300 text-gray-500 cursor-not-allowed'
                                 : 'bg-indigo-600 text-white hover:bg-indigo-700'
                         }`}
@@ -329,31 +381,16 @@ export default function NewMeetingPage() {
                             Please enter room name and your name to continue
                         </p>
                     )}
-                    {roomName &&
-                        userName &&
-                        (!cameraPermission || !micPermission) && (
-                            <p
-                                className={
-                                    'text-sm text-center dark:text-gray-400 text-gray-500'
-                                }
-                            >
-                                Please grant camera and microphone permissions
-                                to continue
-                            </p>
-                        )}
-                    {roomName &&
-                        userName &&
-                        (cameraPermission === 'denied' ||
-                            micPermission === 'denied') && (
-                            <p
-                                className={
-                                    'text-sm text-center text-red-500 dark:text-red-400'
-                                }
-                            >
-                                Camera or microphone access denied. Please
-                                enable in browser settings.
-                            </p>
-                        )}
+                    {roomName && userName && (
+                        <p
+                            className={
+                                'text-sm text-center dark:text-gray-400 text-gray-500'
+                            }
+                        >
+                            Note: Media permissions are optional. You can join
+                            without camera or microphone.
+                        </p>
+                    )}
                 </div>
             </div>
         </div>

@@ -12,6 +12,13 @@ import {
     setTrackError,
     clearRemoteTracks,
 } from '@/store/slices/mediaSlice'
+import {
+    createTracksWithFallback,
+    getMediaDeviceChanges,
+    isDeviceAvailable,
+    groupDevicesByKind,
+    type MediaDeviceChange
+} from './MediaDeviceHelper'
 
 // Dynamically import JitsiMeetJS
 let JitsiMeetJS: any = null
@@ -26,24 +33,121 @@ if (typeof window !== 'undefined') {
  * - Quản lý remote tracks
  * - Handle mute/unmute
  * - Audio level monitoring
+ * - Device change detection và auto-switching
+ * 
+ * Improved based on Jitsi's mediaDeviceHelper.js patterns
  */
 export class MediaManager {
     private dispatch: AppDispatch
     private localTracks: any[] = []
-    private remoteTracks: Map<string, any[]> = new Map()
+    private remoteTracks: Record<string, any[]> = {}
     private audioLevelHandlers: Map<string, (level: number) => void> =
         new Map()
 
+    // Device management
+    private availableDevices: MediaDeviceInfo[] = []
+    private deviceChangeListener: (() => void) | null = null
+
     constructor(dispatch: AppDispatch) {
         this.dispatch = dispatch
+        this.setupDeviceChangeListener()
     }
 
     /**
-     * Tạo local tracks (audio + video)
+     * Setup device change listener
+     */
+    private setupDeviceChangeListener(): void {
+        if (typeof navigator === 'undefined' || !navigator.mediaDevices) {
+            return
+        }
+
+        this.deviceChangeListener = async () => {
+            console.log('[MediaManager] Device change detected')
+            await this.handleDeviceListChanged()
+        }
+
+        navigator.mediaDevices.addEventListener(
+            'devicechange',
+            this.deviceChangeListener
+        )
+    }
+
+    /**
+     * Handle khi device list thay đổi (cắm/rút thiết bị)
+     */
+    private async handleDeviceListChanged(): Promise<void> {
+        try {
+            const newDevices = await navigator.mediaDevices.enumerateDevices()
+            const oldDevices = this.availableDevices
+
+            // Get current tracks
+            const audioTrack = this.localTracks.find(t => t.getType() === 'audio')
+            const videoTrack = this.localTracks.find(t => t.getType() === 'video')
+
+            // TODO: Get preferences from Redux store
+            const preferences = {
+                micDeviceId: null,
+                cameraDeviceId: null,
+                audioOutputDeviceId: null
+            }
+
+            // Determine device changes
+            const changes = getMediaDeviceChanges(
+                newDevices,
+                oldDevices,
+                audioTrack,
+                videoTrack,
+                null, // current output device
+                preferences,
+                this.dispatch
+            )
+
+            // Apply changes if needed
+            await this.applyDeviceChanges(changes)
+
+            // Update device list
+            this.availableDevices = newDevices
+        } catch (error) {
+            console.error('[MediaManager] Error handling device list change:', error)
+        }
+    }
+
+    /**
+     * Apply device changes
+     */
+    private async applyDeviceChanges(changes: MediaDeviceChange): Promise<void> {
+        const needsRecreate = changes.audioinput || changes.videoinput
+
+        if (!needsRecreate) {
+            return
+        }
+
+        console.log('[MediaManager] Applying device changes:', changes)
+
+        // Dispose old tracks
+        await this.disposeLocalTracks()
+
+        // Recreate tracks with new devices
+        try {
+            await this.createLocalTracks({
+                cameraDeviceId: changes.videoinput,
+                micDeviceId: changes.audioinput
+            })
+        } catch (error) {
+            console.error('[MediaManager] Error recreating tracks:', error)
+            this.dispatch(setTrackError('Failed to switch devices'))
+        }
+    }
+
+    /**
+     * Tạo local tracks (audio + video) với graceful fallback
+     * Improved based on Jitsi's pattern
      */
     async createLocalTracks(options?: {
         cameraEnabled?: boolean
         micEnabled?: boolean
+        cameraDeviceId?: string
+        micDeviceId?: string
     }): Promise<any[]> {
         if (!JitsiMeetJS) {
             throw new Error('JitsiMeetJS not initialized')
@@ -53,87 +157,135 @@ export class MediaManager {
         this.dispatch(setTrackError(null))
 
         try {
-            console.log('[MediaManager] Creating local tracks...')
-            const tracks = await JitsiMeetJS.createLocalTracks({
-                devices: ['audio', 'video'],
-                constraints: {
-                    video: {
-                        width: { ideal: 1280, max: 1920 },
-                        height: { ideal: 720, max: 1080 },
-                        frameRate: { ideal: 30 },
-                    },
-                    audio: {
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                        autoGainControl: true,
-                    },
+            // Get current available devices
+            this.availableDevices = await navigator.mediaDevices.enumerateDevices()
+
+            console.log('[MediaManager] createLocalTracks options:', options)
+
+            // Determine which devices to use
+            // undefined = use default device
+            // null = don't create that type of track
+            // If enabled is not explicitly false, we want to create the track
+            const cameraToUse = options?.cameraEnabled === false ? null :
+                (options?.cameraDeviceId || undefined)
+            const micToUse = options?.micEnabled === false ? null :
+                (options?.micDeviceId || undefined)
+
+            console.log('[MediaManager] Devices to use:', { cameraToUse, micToUse })
+
+            // Use helper for graceful fallback
+            const { tracks, audioError, videoError } = await createTracksWithFallback(
+                async (createOptions: any) => {
+                    return await JitsiMeetJS.createLocalTracks({
+                        devices: createOptions.devices,
+                        cameraDeviceId: createOptions.cameraDeviceId,
+                        micDeviceId: createOptions.micDeviceId,
+                        constraints: {
+                            video: {
+                                deviceId: createOptions.cameraDeviceId ?
+                                    { exact: createOptions.cameraDeviceId } : undefined,
+                                width: { ideal: 1280, max: 1920 },
+                                height: { ideal: 720, max: 1080 },
+                                frameRate: { ideal: 30 },
+                            },
+                            audio: {
+                                deviceId: createOptions.micDeviceId ?
+                                    { exact: createOptions.micDeviceId } : undefined,
+                                echoCancellation: true,
+                                noiseSuppression: true,
+                                autoGainControl: true,
+                            },
+                        },
+                    })
                 },
-            })
+                cameraToUse || undefined,
+                micToUse || undefined
+            )
+
+            // Note: tracks can be empty if both audio and video failed
+            // We'll handle this with error messages below
+            console.log('[MediaManager] Created tracks:', tracks.length, 'tracks')
 
             if (tracks.length === 0) {
-                throw new Error('No tracks created')
+                let errorMsg = 'No tracks created'
+
+                if (audioError && videoError) {
+                    errorMsg = `Failed to create both audio and video tracks: ${audioError.message}, ${videoError.message}`
+                    console.error('[MediaManager] Audio error:', audioError)
+                    console.error('[MediaManager] Video error:', videoError)
+                } else if (audioError) {
+                    errorMsg = `Failed to create audio track: ${audioError.message}`
+                    console.error('[MediaManager] Audio error:', audioError)
+                } else if (videoError) {
+                    errorMsg = `Failed to create video track: ${videoError.message}`
+                    console.error('[MediaManager] Video error:', videoError)
+                } else {
+                    errorMsg = 'No tracks created (no devices requested or all failed)'
+                    console.warn('[MediaManager] No errors but no tracks created. Check device permissions and availability.')
+                }
+
+                console.error('[MediaManager]', errorMsg)
+                this.dispatch(setTrackError(errorMsg))
+                // Don't throw - let the app handle gracefully
             }
 
             this.localTracks = tracks
             this.dispatch(setLocalTracks(tracks))
 
+            // Handle partial errors
+            if (audioError) {
+                console.error('[MediaManager] Audio track error:', audioError)
+                // Still continue with video if available
+            }
+            if (videoError) {
+                console.error('[MediaManager] Video track error:', videoError)
+                // Still continue with audio if available
+            }
+
             // Apply initial mute states
             tracks.forEach((track: any) => {
                 if (track.getType() === 'video') {
-                    if (!options?.cameraEnabled) {
+                    if (options?.cameraEnabled === false) {
                         track.mute()
                     }
                     this.dispatch(setCameraEnabled(options?.cameraEnabled ?? true))
                 } else if (track.getType() === 'audio') {
-                    if (!options?.micEnabled) {
+                    if (options?.micEnabled === false) {
                         track.mute()
                     }
                     this.dispatch(setMicEnabled(options?.micEnabled ?? true))
                 }
             })
 
-            console.log('[MediaManager] Local tracks created:', tracks.length)
             return tracks
         } catch (error) {
-            console.error('[MediaManager] Failed to create tracks:', error)
-
-            // Fallback với basic constraints
-            try {
-                console.log('[MediaManager] Trying fallback constraints...')
-                const fallbackTracks = await JitsiMeetJS.createLocalTracks({
-                    devices: ['audio', 'video'],
-                })
-
-                this.localTracks = fallbackTracks
-                this.dispatch(setLocalTracks(fallbackTracks))
-                console.log('[MediaManager] Fallback tracks created:', fallbackTracks.length)
-                return fallbackTracks
-            } catch (fallbackError) {
-                console.error('[MediaManager] Fallback failed:', fallbackError)
-                const errorMsg =
-                    fallbackError instanceof Error
-                        ? fallbackError.message
-                        : 'Unknown error'
-                this.dispatch(setTrackError(errorMsg))
-                throw fallbackError
-            }
+            const errorMsg =
+                error instanceof Error
+                    ? error.message
+                    : 'Unknown error'
+            this.dispatch(setTrackError(errorMsg))
+            throw error
         } finally {
             this.dispatch(setIsCreatingTracks(false))
         }
     }
 
     /**
-     * Dispose tất cả local tracks
+     * Dispose tất cả local tracks với proper cleanup
      */
     async disposeLocalTracks(): Promise<void> {
-        console.log('[MediaManager] Disposing local tracks...')
-
         for (const track of this.localTracks) {
             try {
+                // Check if track is already disposed or ended (Jitsi pattern)
+                if (track.disposed || track.isEnded?.()) {
+                    console.log('[MediaManager] Track already disposed/ended')
+                    continue
+                }
+
                 track.dispose()
-                console.log('[MediaManager] Disposed track:', track.getType())
             } catch (error) {
-                console.error('[MediaManager] Failed to dispose track:', error)
+                console.error('[MediaManager] Track disposal failed:', error)
+                // Continue with other tracks
             }
         }
 
@@ -143,71 +295,123 @@ export class MediaManager {
 
     /**
      * Toggle camera on/off
+     * IMPORTANT: mute/unmute are ASYNC operations!
      */
-    toggleCamera(): void {
+    async toggleCamera(): Promise<void> {
         const videoTrack = this.localTracks.find(
             (track) => track.getType() === 'video'
         )
         if (videoTrack) {
-            if (videoTrack.isMuted()) {
-                videoTrack.unmute()
-                this.dispatch(setCameraEnabled(true))
-            } else {
-                videoTrack.mute()
-                this.dispatch(setCameraEnabled(false))
+            const currentlyMuted = videoTrack.isMuted()
+            const newState = !currentlyMuted
+
+            console.log('[MediaManager] toggleCamera - currently muted:', currentlyMuted, '-> new state:', newState)
+
+            try {
+                if (currentlyMuted) {
+                    await videoTrack.unmute()
+                    console.log('[MediaManager] ✅ Camera toggled ON')
+                } else {
+                    await videoTrack.mute()
+                    console.log('[MediaManager] ✅ Camera toggled OFF')
+                }
+                this.dispatch(setCameraEnabled(newState))
+            } catch (error) {
+                console.error('[MediaManager] ❌ Error toggling camera:', error)
+                throw error
             }
         }
     }
 
     /**
      * Toggle microphone on/off
+     * IMPORTANT: mute/unmute are ASYNC operations!
      */
-    toggleMic(): void {
+    async toggleMic(): Promise<void> {
         const audioTrack = this.localTracks.find(
             (track) => track.getType() === 'audio'
         )
         if (audioTrack) {
-            if (audioTrack.isMuted()) {
-                audioTrack.unmute()
-                this.dispatch(setMicEnabled(true))
-            } else {
-                audioTrack.mute()
-                this.dispatch(setMicEnabled(false))
+            const currentlyMuted = audioTrack.isMuted()
+            const newState = !currentlyMuted
+
+            console.log('[MediaManager] toggleMic - currently muted:', currentlyMuted, '-> new state:', newState)
+
+            try {
+                if (currentlyMuted) {
+                    await audioTrack.unmute()
+                    console.log('[MediaManager] ✅ Microphone toggled ON')
+                } else {
+                    await audioTrack.mute()
+                    console.log('[MediaManager] ✅ Microphone toggled OFF')
+                }
+                this.dispatch(setMicEnabled(newState))
+            } catch (error) {
+                console.error('[MediaManager] ❌ Error toggling microphone:', error)
+                throw error
             }
         }
     }
 
     /**
      * Set camera enabled/disabled
+     * IMPORTANT: mute/unmute are ASYNC operations in Jitsi!
      */
-    setCamera(enabled: boolean): void {
+    async setCamera(enabled: boolean): Promise<void> {
         const videoTrack = this.localTracks.find(
             (track) => track.getType() === 'video'
         )
+        console.log('[MediaManager] setCamera called with enabled:', enabled)
+        console.log('[MediaManager] Video track found:', !!videoTrack)
         if (videoTrack) {
-            if (enabled) {
-                videoTrack.unmute()
-            } else {
-                videoTrack.mute()
+            console.log('[MediaManager] Video track before - isMuted:', videoTrack.isMuted())
+            try {
+                if (enabled) {
+                    await videoTrack.unmute()
+                    console.log('[MediaManager] ✅ Video unmuted successfully')
+                } else {
+                    await videoTrack.mute()
+                    console.log('[MediaManager] ✅ Video muted successfully')
+                }
+                console.log('[MediaManager] Video track after - isMuted:', videoTrack.isMuted())
+
+                // Update Redux state AFTER mute/unmute completes
+                this.dispatch(setCameraEnabled(enabled))
+            } catch (error) {
+                console.error('[MediaManager] ❌ Error toggling camera:', error)
+                throw error
             }
-            this.dispatch(setCameraEnabled(enabled))
         }
     }
 
     /**
      * Set microphone enabled/disabled
+     * IMPORTANT: mute/unmute are ASYNC operations in Jitsi!
      */
-    setMic(enabled: boolean): void {
+    async setMic(enabled: boolean): Promise<void> {
         const audioTrack = this.localTracks.find(
             (track) => track.getType() === 'audio'
         )
+        console.log('[MediaManager] setMic called with enabled:', enabled)
+        console.log('[MediaManager] Audio track found:', !!audioTrack)
         if (audioTrack) {
-            if (enabled) {
-                audioTrack.unmute()
-            } else {
-                audioTrack.mute()
+            console.log('[MediaManager] Audio track before - isMuted:', audioTrack.isMuted())
+            try {
+                if (enabled) {
+                    await audioTrack.unmute()
+                    console.log('[MediaManager] ✅ Audio unmuted successfully')
+                } else {
+                    await audioTrack.mute()
+                    console.log('[MediaManager] ✅ Audio muted successfully')
+                }
+                console.log('[MediaManager] Audio track after - isMuted:', audioTrack.isMuted())
+
+                // Update Redux state AFTER mute/unmute completes
+                this.dispatch(setMicEnabled(enabled))
+            } catch (error) {
+                console.error('[MediaManager] ❌ Error toggling microphone:', error)
+                throw error
             }
-            this.dispatch(setMicEnabled(enabled))
         }
     }
 
@@ -220,17 +424,10 @@ export class MediaManager {
         const participantId = track.getParticipantId()
         const trackType = track.getType()
 
-        console.log(
-            '[MediaManager] Remote track added:',
-            trackType,
-            'from:',
-            participantId
-        )
-
         // Store track
-        const tracks = this.remoteTracks.get(participantId) || []
+        const tracks = this.remoteTracks[participantId] || []
         tracks.push(track)
-        this.remoteTracks.set(participantId, tracks)
+        this.remoteTracks[participantId] = tracks
 
         // Dispatch to Redux
         this.dispatch(addRemoteTrack({ participantId, track }))
@@ -239,12 +436,7 @@ export class MediaManager {
         track.addEventListener(
             JitsiMeetJS.events.track.TRACK_MUTE_CHANGED,
             () => {
-                console.log(
-                    '[MediaManager] Track mute changed:',
-                    trackType,
-                    'muted:',
-                    track.isMuted()
-                )
+                // Track mute state changed
             }
         )
 
@@ -271,22 +463,14 @@ export class MediaManager {
     handleRemoteTrackRemoved(track: any): void {
         const participantId = track.getParticipantId()
         const trackId = track.getId()
-        const trackType = track.getType()
-
-        console.log(
-            '[MediaManager] Track removed:',
-            trackType,
-            'from:',
-            participantId
-        )
 
         // Remove from local storage
-        const tracks = this.remoteTracks.get(participantId) || []
+        const tracks = this.remoteTracks[participantId] || []
         const filtered = tracks.filter((t) => t.getId() !== trackId)
         if (filtered.length > 0) {
-            this.remoteTracks.set(participantId, filtered)
+            this.remoteTracks[participantId] = filtered
         } else {
-            this.remoteTracks.delete(participantId)
+            delete this.remoteTracks[participantId]
         }
 
         // Cleanup audio level handler
@@ -314,28 +498,157 @@ export class MediaManager {
      * Get remote tracks for a participant
      */
     getRemoteTracksForParticipant(participantId: string): any[] {
-        return this.remoteTracks.get(participantId) || []
+        return this.remoteTracks[participantId] || []
     }
 
     /**
      * Cleanup all remote tracks
      */
     clearAllRemoteTracks(): void {
-        console.log('[MediaManager] Clearing all remote tracks...')
-
         // Remove all audio level handlers
         this.audioLevelHandlers.clear()
 
         // Clear remote tracks
-        this.remoteTracks.clear()
+        this.remoteTracks = {}
         this.dispatch(clearRemoteTracks())
     }
 
     /**
-     * Complete cleanup
+     * Get available devices
+     */
+    getAvailableDevices(): MediaDeviceInfo[] {
+        return this.availableDevices
+    }
+
+    /**
+     * Get devices grouped by kind
+     */
+    getDevicesByKind() {
+        return groupDevicesByKind(this.availableDevices)
+    }
+
+    /**
+     * Check if a specific device is available
+     */
+    isDeviceAvailable(deviceId: string, kind: MediaDeviceKind): boolean {
+        return isDeviceAvailable(deviceId, kind, this.availableDevices)
+    }
+
+    /**
+     * Switch to a specific camera device
+     */
+    async switchCamera(deviceId: string): Promise<void> {
+        if (!this.isDeviceAvailable(deviceId, 'videoinput')) {
+            throw new Error('Camera device not available')
+        }
+
+        const videoTrack = this.localTracks.find(t => t.getType() === 'video')
+        const wasEnabled = videoTrack && !videoTrack.isMuted()
+
+        // Dispose current video track
+        if (videoTrack) {
+            try {
+                videoTrack.dispose()
+                this.localTracks = this.localTracks.filter(t => t !== videoTrack)
+            } catch (error) {
+                console.error('[MediaManager] Error disposing video track:', error)
+            }
+        }
+
+        // Create new video track with specific device
+        try {
+            const newTracks = await JitsiMeetJS.createLocalTracks({
+                devices: ['video'],
+                cameraDeviceId: deviceId,
+                constraints: {
+                    video: {
+                        deviceId: { exact: deviceId },
+                        width: { ideal: 1280, max: 1920 },
+                        height: { ideal: 720, max: 1080 },
+                        frameRate: { ideal: 30 },
+                    }
+                }
+            })
+
+            if (newTracks.length > 0) {
+                this.localTracks.push(newTracks[0])
+                this.dispatch(setLocalTracks(this.localTracks))
+
+                // Restore mute state
+                if (!wasEnabled) {
+                    newTracks[0].mute()
+                }
+            }
+        } catch (error) {
+            console.error('[MediaManager] Error switching camera:', error)
+            throw error
+        }
+    }
+
+    /**
+     * Switch to a specific microphone device
+     */
+    async switchMicrophone(deviceId: string): Promise<void> {
+        if (!this.isDeviceAvailable(deviceId, 'audioinput')) {
+            throw new Error('Microphone device not available')
+        }
+
+        const audioTrack = this.localTracks.find(t => t.getType() === 'audio')
+        const wasEnabled = audioTrack && !audioTrack.isMuted()
+
+        // Dispose current audio track
+        if (audioTrack) {
+            try {
+                audioTrack.dispose()
+                this.localTracks = this.localTracks.filter(t => t !== audioTrack)
+            } catch (error) {
+                console.error('[MediaManager] Error disposing audio track:', error)
+            }
+        }
+
+        // Create new audio track with specific device
+        try {
+            const newTracks = await JitsiMeetJS.createLocalTracks({
+                devices: ['audio'],
+                micDeviceId: deviceId,
+                constraints: {
+                    audio: {
+                        deviceId: { exact: deviceId },
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true,
+                    }
+                }
+            })
+
+            if (newTracks.length > 0) {
+                this.localTracks.push(newTracks[0])
+                this.dispatch(setLocalTracks(this.localTracks))
+
+                // Restore mute state
+                if (!wasEnabled) {
+                    newTracks[0].mute()
+                }
+            }
+        } catch (error) {
+            console.error('[MediaManager] Error switching microphone:', error)
+            throw error
+        }
+    }
+
+    /**
+     * Complete cleanup with device listener removal
      */
     async cleanup(): Promise<void> {
-        console.log('[MediaManager] Complete cleanup...')
+        // Remove device change listener
+        if (this.deviceChangeListener && typeof navigator !== 'undefined') {
+            navigator.mediaDevices?.removeEventListener(
+                'devicechange',
+                this.deviceChangeListener
+            )
+            this.deviceChangeListener = null
+        }
+
         await this.disposeLocalTracks()
         this.clearAllRemoteTracks()
     }
