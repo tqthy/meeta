@@ -3,10 +3,10 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export interface MediaState {
     localTracks: any[] // JitsiTrack[]
-    remoteTracks: Map<string, any[]> // Map<participantId, JitsiTrack[]>
+    remoteTracks: Record<string, any[]> // Record<participantId, JitsiTrack[]>
     cameraEnabled: boolean
     micEnabled: boolean
-    audioLevel: Map<string, number> // Map<participantId, audioLevel>
+    audioLevel: Record<string, number> // Record<participantId, audioLevel>
     devices: {
         audioInput: MediaDeviceInfo[]
         audioOutput: MediaDeviceInfo[]
@@ -23,10 +23,10 @@ export interface MediaState {
 
 const initialState: MediaState = {
     localTracks: [],
-    remoteTracks: new Map(),
-    cameraEnabled: true,
-    micEnabled: true,
-    audioLevel: new Map(),
+    remoteTracks: {},
+    cameraEnabled: false,
+    micEnabled: false,
+    audioLevel: {},
     devices: {
         audioInput: [],
         audioOutput: [],
@@ -66,27 +66,27 @@ const mediaSlice = createSlice({
             action: PayloadAction<{ participantId: string; track: any }>
         ) => {
             const { participantId, track } = action.payload
-            const tracks = state.remoteTracks.get(participantId) || []
+            const tracks = state.remoteTracks[participantId] || []
             tracks.push(track)
-            state.remoteTracks.set(participantId, tracks)
+            state.remoteTracks[participantId] = tracks
         },
         removeRemoteTrack: (
             state,
             action: PayloadAction<{ participantId: string; trackId: string }>
         ) => {
             const { participantId, trackId } = action.payload
-            const tracks = state.remoteTracks.get(participantId) || []
+            const tracks = state.remoteTracks[participantId] || []
             const filtered = tracks.filter(
                 (track) => track.getId() !== trackId
             )
             if (filtered.length > 0) {
-                state.remoteTracks.set(participantId, filtered)
+                state.remoteTracks[participantId] = filtered
             } else {
-                state.remoteTracks.delete(participantId)
+                delete state.remoteTracks[participantId]
             }
         },
         clearRemoteTracks: (state) => {
-            state.remoteTracks.clear()
+            state.remoteTracks = {}
         },
 
         // Media controls
@@ -109,7 +109,7 @@ const mediaSlice = createSlice({
             action: PayloadAction<{ participantId: string; level: number }>
         ) => {
             const { participantId, level } = action.payload
-            state.audioLevel.set(participantId, level)
+            state.audioLevel[participantId] = level
         },
 
         // Device management

@@ -3,7 +3,7 @@ import { X, Mic, MicOff, MoreVertical, UserPlus } from 'lucide-react'
 import Image from 'next/image'
 
 interface Participant {
-    id: number
+    id: string | number
     name: string
     imageUrl: string
     isMuted: boolean
@@ -62,6 +62,8 @@ export function ParticipantsPanel({
                         <Image
                             src={participant.imageUrl}
                             alt={participant.name}
+                            width={40}
+                            height={40}
                             className="w-10 h-10 rounded-full object-cover"
                         />
                         <div className="flex-1 min-w-0">

@@ -73,6 +73,8 @@ export function ChatPanel({ messages, isOpen, onClose }: ChatPanelProps) {
                         <Image
                             src={message.senderImage}
                             alt={message.senderName}
+                            width={32}
+                            height={32}
                             className="w-8 h-8 rounded-full object-cover flex-shrink-0"
                         />
                         <div className="flex-1 min-w-0">

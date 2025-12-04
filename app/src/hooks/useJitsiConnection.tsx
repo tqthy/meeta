@@ -1,13 +1,18 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
 import { useEffect, useRef, useCallback } from 'react'
-import { useAppDispatch, useAppSelector, type RootState } from '@/store'
+import { useAppDispatch, useAppSelector } from '@/store'
 import { JitsiService } from '@/services/JitsiService'
 import { MediaManager } from '@/services/MediaManager'
 import { resetConnectionState } from '@/store/slices/connectionSlice'
-import { resetMediaState } from '@/store/slices/mediaSlice'
+import {
+    resetMediaState,
+    setMicEnabled,
+    setCameraEnabled,
+} from '@/store/slices/mediaSlice'
+import { updateParticipantMuteState } from '@/store/slices/participantsSlice'
 
 // Dynamically import JitsiMeetJS
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let JitsiMeetJS: any = null
 if (typeof window !== 'undefined') {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -42,8 +47,8 @@ interface JitsiConnectionHookProps {
 export const useJitsiConnection = ({
     roomName,
     userName,
-    cameraEnabled,
-    micEnabled,
+    cameraEnabled, // eslint-disable-line @typescript-eslint/no-unused-vars
+    micEnabled, // eslint-disable-line @typescript-eslint/no-unused-vars
     jwt,
     onConferenceJoined,
     onConferenceLeft,
@@ -57,12 +62,20 @@ export const useJitsiConnection = ({
     const { isConnected, isJoined } = useAppSelector(
         (state) => state.connection
     )
-    const { localTracks } = useAppSelector((state) => state.media)
+    const {
+        localTracks,
+        cameraEnabled: reduxCameraEnabled,
+        micEnabled: reduxMicEnabled,
+    } = useAppSelector((state) => state.media)
 
     // Service instances
     const jitsiServiceRef = useRef<JitsiService | null>(null)
     const mediaManagerRef = useRef<MediaManager | null>(null)
     const isInitializedRef = useRef(false)
+    const previousStatesRef = useRef({
+        cameraEnabled: reduxCameraEnabled,
+        micEnabled: reduxMicEnabled,
+    })
 
     // Store callbacks in refs
     const callbacksRef = useRef({
@@ -105,7 +118,7 @@ export const useJitsiConnection = ({
         }
     }, [dispatch])
 
-    // Create local tracks
+    // Create local tracks once per room
     useEffect(() => {
         if (!mediaManagerRef.current || !roomName || isInitializedRef.current) {
             return
@@ -115,8 +128,8 @@ export const useJitsiConnection = ({
             try {
                 console.log('[Hook] Creating local tracks...')
                 await mediaManagerRef.current!.createLocalTracks({
-                    cameraEnabled,
-                    micEnabled,
+                    cameraEnabled: reduxCameraEnabled,
+                    micEnabled: reduxMicEnabled,
                 })
                 isInitializedRef.current = true
             } catch (error) {
@@ -125,7 +138,19 @@ export const useJitsiConnection = ({
         }
 
         initializeTracks()
-    }, [roomName, cameraEnabled, micEnabled])
+    }, [roomName, reduxCameraEnabled, reduxMicEnabled])
+
+    // Cleanup local tracks only on unmount
+    useEffect(() => {
+        return () => {
+            if (mediaManagerRef.current) {
+                console.log('[Hook] Cleaning up local tracks...')
+                mediaManagerRef.current.disposeLocalTracks().catch((err) => {
+                    console.error('[Hook] Error disposing tracks:', err)
+                })
+            }
+        }
+    }, [])
 
     // Connect and join conference
     useEffect(() => {
@@ -191,12 +216,10 @@ export const useJitsiConnection = ({
         const conference = jitsiServiceRef.current.getConference()
         if (!conference) return
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const handleTrackAdded = (track: any) => {
             mediaManagerRef.current!.handleRemoteTrackAdded(track)
         }
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const handleTrackRemoved = (track: any) => {
             mediaManagerRef.current!.handleRemoteTrackRemoved(track)
         }
@@ -224,17 +247,101 @@ export const useJitsiConnection = ({
 
     // Handle camera toggle
     useEffect(() => {
-        if (mediaManagerRef.current) {
-            mediaManagerRef.current.setCamera(cameraEnabled)
+        const toggleCamera = async () => {
+            if (
+                mediaManagerRef.current &&
+                reduxCameraEnabled !== previousStatesRef.current.cameraEnabled
+            ) {
+                const tracks = mediaManagerRef.current.getLocalTracks() || []
+                const videoTrack = tracks.find(
+                    (t: any) => t.getType() === 'video'
+                ) as any
+                const trackMutedBefore = videoTrack?.isMuted()
+
+                console.log(
+                    '[Hook] Camera toggle - Redux state changed:',
+                    reduxCameraEnabled
+                )
+                console.log('[Hook] Video track found:', !!videoTrack)
+                console.log(
+                    '[Hook] Video track muted before:',
+                    trackMutedBefore
+                )
+
+                try {
+                    await mediaManagerRef.current.setCamera(reduxCameraEnabled)
+                    previousStatesRef.current.cameraEnabled = reduxCameraEnabled
+
+                    const trackMutedAfter = videoTrack?.isMuted()
+                    console.log(
+                        '[Hook] Video track muted after:',
+                        trackMutedAfter
+                    )
+                } catch (error) {
+                    console.error('[Hook] ❌ Failed to toggle camera:', error)
+                }
+            }
         }
-    }, [cameraEnabled])
+
+        toggleCamera()
+    }, [reduxCameraEnabled])
 
     // Handle mic toggle
     useEffect(() => {
-        if (mediaManagerRef.current) {
-            mediaManagerRef.current.setMic(micEnabled)
+        const toggleMic = async () => {
+            if (
+                mediaManagerRef.current &&
+                reduxMicEnabled !== previousStatesRef.current.micEnabled
+            ) {
+                const tracks = mediaManagerRef.current.getLocalTracks() || []
+                const audioTrack = tracks.find(
+                    (t: any) => t.getType() === 'audio'
+                ) as any
+                const trackMutedBefore = audioTrack?.isMuted()
+
+                console.log(
+                    '[Hook] Mic toggle - Redux state changed:',
+                    reduxMicEnabled
+                )
+                console.log('[Hook] Audio track found:', !!audioTrack)
+                console.log(
+                    '[Hook] Audio track muted before:',
+                    trackMutedBefore
+                )
+
+                try {
+                    await mediaManagerRef.current.setMic(reduxMicEnabled)
+                    previousStatesRef.current.micEnabled = reduxMicEnabled
+
+                    const trackMutedAfter = audioTrack?.isMuted()
+                    console.log(
+                        '[Hook] Audio track muted after:',
+                        trackMutedAfter
+                    )
+
+                    // Update local participant mute state
+                    dispatch(
+                        updateParticipantMuteState({
+                            participantId: 'local',
+                            isMuted: !reduxMicEnabled,
+                            isLocal: true,
+                        })
+                    )
+                    console.log(
+                        '[Hook] ✅ Local participant mute state updated:',
+                        !reduxMicEnabled
+                    )
+                } catch (error) {
+                    console.error(
+                        '[Hook] ❌ Failed to toggle microphone:',
+                        error
+                    )
+                }
+            }
         }
-    }, [micEnabled])
+
+        toggleMic()
+    }, [reduxMicEnabled, dispatch])
 
     // Disconnect function
     const disconnect = useCallback(async () => {
@@ -288,8 +395,76 @@ export const useJitsiConnection = ({
         localTracks,
         connection: jitsiServiceRef.current?.getConnection() || null,
         conference: jitsiServiceRef.current?.getConference() || null,
+        mediaManager: mediaManagerRef.current,
         disconnect,
-        toggleCamera: () => mediaManagerRef.current?.toggleCamera(),
-        toggleMic: () => mediaManagerRef.current?.toggleMic(),
+        toggleCamera: useCallback(() => {
+            console.log('[Hook] toggleCamera callback called')
+            if (!mediaManagerRef.current) {
+                console.log('[Hook] mediaManagerRef.current not available')
+                return
+            }
+            const tracks = mediaManagerRef.current.getLocalTracks() || []
+            console.log('[Hook] toggleCamera - Total tracks:', tracks.length)
+            const videoTrack = tracks.find(
+                (track: any) => track.getType() === 'video'
+            )
+            console.log(
+                '[Hook] toggleCamera - Video track found:',
+                !!videoTrack
+            )
+            if (videoTrack) {
+                const wasMuted = videoTrack.isMuted()
+                console.log(
+                    '[Hook] toggleCamera - Video track was muted:',
+                    wasMuted
+                )
+                if (wasMuted) {
+                    videoTrack.unmute()
+                    console.log('[Hook] toggleCamera - Unmuting camera')
+                    dispatch(setCameraEnabled(true))
+                } else {
+                    videoTrack.mute()
+                    console.log('[Hook] toggleCamera - Muting camera')
+                    dispatch(setCameraEnabled(false))
+                }
+                console.log(
+                    '[Hook] toggleCamera - Video track now muted:',
+                    videoTrack.isMuted()
+                )
+            }
+        }, [dispatch]),
+        toggleMic: useCallback(() => {
+            console.log('[Hook] toggleMic callback called')
+            if (!mediaManagerRef.current) {
+                console.log('[Hook] mediaManagerRef.current not available')
+                return
+            }
+            const tracks = mediaManagerRef.current.getLocalTracks() || []
+            console.log('[Hook] toggleMic - Total tracks:', tracks.length)
+            const audioTrack = tracks.find(
+                (track: any) => track.getType() === 'audio'
+            )
+            console.log('[Hook] toggleMic - Audio track found:', !!audioTrack)
+            if (audioTrack) {
+                const wasMuted = audioTrack.isMuted()
+                console.log(
+                    '[Hook] toggleMic - Audio track was muted:',
+                    wasMuted
+                )
+                if (wasMuted) {
+                    audioTrack.unmute()
+                    console.log('[Hook] toggleMic - Unmuting mic')
+                    dispatch(setMicEnabled(true))
+                } else {
+                    audioTrack.mute()
+                    console.log('[Hook] toggleMic - Muting mic')
+                    dispatch(setMicEnabled(false))
+                }
+                console.log(
+                    '[Hook] toggleMic - Audio track now muted:',
+                    audioTrack.isMuted()
+                )
+            }
+        }, [dispatch]),
     }
 }
