@@ -2,5 +2,8 @@
  * Meeting Store - Barrel Export
  */
 
-export { meetingStoreSlice } from './meetingStore'
-export { trackStoreSlice } from './trackStore'
+export { default as meetingReducer } from './meetingStore'
+export * from './meetingStore'
+
+export { default as trackReducer } from './trackStore'
+export * from './trackStore'
