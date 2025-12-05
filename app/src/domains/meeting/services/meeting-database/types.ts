@@ -4,9 +4,17 @@
  * DTOs and event types for the persistence domain.
  * These types define the shape of serializable events from meeting-runtime
  * and the DTOs used for Prisma mapping.
+ *
+ * NOTE: This file must NOT import from Prisma to remain client-safe.
+ * Types are duplicated here to avoid bundling Prisma in client code.
  */
 
-import type { MeetingStatus, ParticipantRole } from '../../../../app/generated/prisma'
+// ============================================================================
+// Prisma-compatible types (duplicated for client safety)
+// ============================================================================
+
+export type MeetingStatus = 'SCHEDULED' | 'ACTIVE' | 'ENDED' | 'CANCELLED'
+export type ParticipantRole = 'HOST' | 'CO_HOST' | 'PARTICIPANT'
 
 // ============================================================================
 // Base Event Types
