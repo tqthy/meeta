@@ -21,9 +21,9 @@ plugin_paths = { "/prosody-plugins-custom", "/prosody-plugins/", "/prosody-plugi
 muc_mapper_domain_base = "meet.jitsi";
 muc_mapper_domain_prefix = "muc";
 
-recorder_prefixes = { "recorder@recorder.meet.jitsi" };
+recorder_prefixes = { "recorder@hidden.meet.jitsi" };
 
-transcriber_prefixes = { "transcriber@recorder.meet.jitsi" };
+transcriber_prefixes = { "transcriber@hidden.meet.jitsi" };
 
 http_default_host = "meet.jitsi"
 

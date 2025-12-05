@@ -195,9 +195,7 @@ log = {
 
 
 
-external_services = {
-        { type = "stun", host = "meet-jit-si-turnrelay.jitsi.net", port = 443, transport = "udp" }
-};
+
 
 
 

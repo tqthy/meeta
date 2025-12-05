@@ -1,11 +1,9 @@
-﻿'use client'
+﻿/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { useJitsiConnection } from '@/hooks/useJitsiConnection'
-import { useParticipantsManager } from '@/hooks/useParticipantsManager'
-import { useAppSelector, useAppDispatch } from '@/store'
-import { setMicEnabled, setCameraEnabled } from '@/store/slices/mediaSlice'
 import { ControlBar } from './components/control-panel'
 import { ParticipantsPanel } from './components/participant-panel'
 import { ChatPanel } from './components/chat-panel'
@@ -19,13 +17,9 @@ type LayoutType = 'auto' | 'grid' | 'sidebar' | 'spotlight'
 export default function RoomPage() {
     const params = useParams()
     const router = useRouter()
-    const dispatch = useAppDispatch()
     const roomName = params.id as string
 
     // UI States
-    const [userName, setUserName] = useState('')
-    /* eslint-disable @typescript-eslint/no-explicit-any */
-    const [room, setRoom] = useState<any | null>(null)
     const [showParticipants, setShowParticipants] = useState(false)
     const [showChat, setShowChat] = useState(false)
     const [showSettings, setShowSettings] = useState(false)
@@ -33,77 +27,30 @@ export default function RoomPage() {
     const [currentLayout, setCurrentLayout] = useState<LayoutType>('grid')
     const [messagesList] = useState(messages)
 
-    // Media state from Redux
-    const { localTracks, micEnabled, cameraEnabled } = useAppSelector(
-        (state) => state.media
-    )
-
+    // Media state - default values
+    const micEnabled = false
+    const cameraEnabled = false
     const [cameraActive, setCameraActive] = useState<boolean>(cameraEnabled)
 
-    // Initialize user preferences
-    useEffect(() => {
-        const storedUserName = sessionStorage.getItem('userName') || 'Guest'
-        const storedCameraEnabled =
-            sessionStorage.getItem('cameraEnabled') === 'true'
-        const storedMicEnabled = sessionStorage.getItem('micEnabled') === 'true'
+    // Placeholder for connection state
+    const disconnect = useCallback(async () => {
+        router.push('/dashboard/meetings')
+    }, [router])
 
-        setUserName(storedUserName)
-        dispatch(setCameraEnabled(storedCameraEnabled))
-        dispatch(setMicEnabled(storedMicEnabled))
-    }, [dispatch])
-
-    // Cleanup on unmount
-    useEffect(() => {
-        return () => {
-            sessionStorage.removeItem('cameraPermission')
-            sessionStorage.removeItem('micPermission')
-        }
-    }, [])
-
-    // Jitsi connection
-    const { isConnected, isJoined, disconnect } = useJitsiConnection({
-        roomName: roomName || '',
-        userName,
-        cameraEnabled,
-        micEnabled,
-        onConferenceJoined: useCallback((roomObj: any) => {
-            console.log('[Room] Joined conference')
-            setRoom(roomObj)
-        }, []),
-        onConferenceLeft: useCallback(() => {
-            console.log('[Room] Left conference')
-            router.push('/dashboard/meetings')
-        }, [router]),
-        onConferenceFailed: useCallback(
-            (error: Error) => {
-                console.error('[Room] Conference failed:', error)
-                alert('Failed to join meeting: ' + error.message)
-                router.push('/dashboard/meetings')
-            },
-            [router]
-        ),
-    })
-
-    // Participants management
-    const { allParticipants } = useParticipantsManager({
-        room,
-        userName,
-        localTracks,
-    })
+    // Placeholder for participants
+    const allParticipants: any[] = []
 
     // Media control handlers
     const handleToggleMic = useCallback(() => {
         const newState = !micEnabled
-        dispatch(setMicEnabled(newState))
         sessionStorage.setItem('micEnabled', String(newState))
-    }, [micEnabled, dispatch])
+    }, [micEnabled])
 
     const handleToggleCamera = useCallback(() => {
         const newState = !cameraEnabled
-        dispatch(setCameraEnabled(newState))
         sessionStorage.setItem('cameraEnabled', String(newState))
         setCameraActive(newState)
-    }, [cameraEnabled, dispatch])
+    }, [cameraEnabled])
 
     const handleLeave = useCallback(async () => {
         await disconnect()
@@ -138,7 +85,6 @@ export default function RoomPage() {
                                 mainParticipant.isLocalParticipant
                             }
                             videoTrack={mainParticipant.videoTrack}
-                            audioTrack={mainParticipant.audioTrack}
                         />
                     </div>
                     {sidebarParticipants.length > 0 && (
@@ -152,7 +98,6 @@ export default function RoomPage() {
                                         participant.isLocalParticipant
                                     }
                                     videoTrack={participant.videoTrack}
-                                    audioTrack={participant.audioTrack}
                                 />
                             ))}
                         </div>
@@ -176,7 +121,6 @@ export default function RoomPage() {
                                 mainParticipant.isLocalParticipant
                             }
                             videoTrack={mainParticipant.videoTrack}
-                            audioTrack={mainParticipant.audioTrack}
                         />
                     </div>
                     {sidebarParticipants.length > 0 && (
@@ -190,7 +134,6 @@ export default function RoomPage() {
                                             participant.isLocalParticipant
                                         }
                                         videoTrack={participant.videoTrack}
-                                        audioTrack={participant.audioTrack}
                                     />
                                 </div>
                             ))}
@@ -217,32 +160,11 @@ export default function RoomPage() {
                         isMuted={participant.isMuted}
                         isLocalParticipant={participant.isLocalParticipant}
                         videoTrack={participant.videoTrack}
-                        audioTrack={participant.audioTrack}
                     />
                 ))}
             </div>
         )
-    }, [allParticipants, currentLayout])
-
-    // Loading state
-    if (!isJoined) {
-        return (
-            <div className="flex items-center justify-center h-screen bg-gray-900">
-                <div className="text-center">
-                    <div className="text-white mb-4">
-                        <p className="text-2xl font-bold mb-2">
-                            {isConnected
-                                ? 'Joining meeting...'
-                                : 'Connecting...'}
-                        </p>
-                        <p className="text-gray-400">
-                            Please wait while we set up your conference
-                        </p>
-                    </div>
-                </div>
-            </div>
-        )
-    }
+    }, [allParticipants, currentLayout, cameraActive])
 
     return (
         <div className="flex h-screen bg-gray-900">
