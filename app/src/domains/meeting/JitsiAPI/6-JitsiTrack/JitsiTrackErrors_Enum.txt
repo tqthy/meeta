@@ -1,0 +1,18 @@
+﻿```csv
+stt,enum,value,description
+1,CONSTRAINT_FAILED,"gum.constraint_failed","Indicates some requested getUserMedia constraints were not satisfied."
+2,ELECTRON_DESKTOP_PICKER_ERROR,"gum.electron_desktop_picker_error","Generic error selecting DesktopCapturerSource in Electron."
+3,ELECTRON_DESKTOP_PICKER_NOT_FOUND,"gum.electron_desktop_picker_not_found","No custom desktop picker detected for Electron."
+4,GENERAL,"gum.general","General getUserMedia error."
+5,NOT_FOUND,"gum.not_found","Requested device not found."
+6,PERMISSION_DENIED,"gum.permission_denied","User denied permission to access requested device."
+7,SCREENSHARING_GENERIC_ERROR,"gum.screensharing_generic_error","Generic screen sharing failure."
+8,SCREENSHARING_NOT_SUPPORTED_ERROR,"gdm.screen_sharing_not_supported","getDisplayMedia not supported in this environment."
+9,SCREENSHARING_USER_CANCELED,"gum.screensharing_user_canceled","User canceled the screen sharing selection dialog."
+10,TIMEOUT,"gum.timeout","Timeout while obtaining audio/video permissions."
+11,TRACK_IS_DISPOSED,"track.track_is_disposed","Track has been disposed and cannot be used."
+12,TRACK_NO_STREAM_FOUND,"track.no_stream_found","Track has no associated MediaStream."
+13,TRACK_NO_STREAM_TRACKS_FOUND,"track.no_stream_tracks_found","No tracks found in the provided MediaStream."
+14,TRACK_TOO_MANY_TRACKS_IN_STREAM,"track.too_many_tracks_in_stream","Too many tracks in the provided MediaStream."
+15,UNSUPPORTED_RESOLUTION,"gum.unsupported_resolution","Requested video resolution is not supported by the webcam."
+```

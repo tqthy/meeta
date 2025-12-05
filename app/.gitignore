@@ -44,3 +44,6 @@ globals.d.ts
 /src/app/generated/prisma
 
 ./ai_agents
+
+# AI logs and temporary agent artifacts
+/ai_logs

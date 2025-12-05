@@ -1,0 +1,19 @@
+﻿```plaintext
+**Class JitsiMediaDevices** is a media devices utility class for Jitsi. It typically has a single shared instance.
+
+The following lists constructors and methods in CSV form:
+
+```csv
+Stt,Name,Type,Parameters and description,Description
+1,constructor,constructor,N/A,Initializes the JitsiMediaDevices instance.
+2,enumerateDevices,method,"callback: (devices: MediaDeviceInfo[]) => void","Executes callback with the list of connected media devices."
+3,getAudioOutputDevice,method,N/A,Returns the ID of the currently used audio output device ("default" indicates system default).
+4,isDeviceChangeAvailable,method,"(deviceType?: string)",Returns true if switching input/output devices is supported.
+5,isDevicePermissionGranted,method,"(type?: MediaType)",Checks whether permission for the given device type is granted.
+6,isMultipleAudioInputSupported,method,N/A,Returns true if multiple simultaneous audio inputs are supported.
+7,setAudioOutputDevice,method,"(deviceId: string)",Sets the current audio output device by deviceId.
+```
+
+---
+Source: workspace reference files.
+```

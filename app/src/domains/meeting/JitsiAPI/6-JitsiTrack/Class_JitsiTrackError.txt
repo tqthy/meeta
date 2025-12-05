@@ -1,0 +1,10 @@
+﻿```plaintext
+**Class JitsiTrackError** represents an error related to a `JitsiTrack`. It extends `Error` and can represent various getUserMedia / track-related errors.
+
+The following lists constructor and properties in CSV form:
+
+```csv
+Stt,Name,Type,Parameters and description,Description
+1,constructor,constructor,"error: string | IGumError, options?: string | IGumOptions, devices?: DeviceType[]","Create a new JitsiTrackError instance."
+2,gum,property,"gum?: IGum","Optional getUserMedia error details."
+```

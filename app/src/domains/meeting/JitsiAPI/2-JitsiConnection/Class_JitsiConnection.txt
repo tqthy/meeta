@@ -1,0 +1,26 @@
+﻿```plaintext
+**Class JitsiConnection** creates a connection object for the Jitsi Meet server-side conferencing service and provides access to `JitsiConference`.
+
+The following lists constructors, properties and methods in CSV form:
+
+```csv
+Stt,Name,Type,Parameters and description,Description
+1,constructor,constructor,"(appID - provider id),(token - JWT token optional),(options - connection options)",Creates a new `JitsiConnection` instance.
+2,options,properties,N/A,Connection options defined as `IConnectionOptions` (read-only).
+3,addEventListener,method,"(event, listener)",Registers a listener for the given connection event.
+4,addFeature,method,"(feature, submit?)","Adds a feature to the local participant's supported feature list; if submit=true the list is immediately submitted to peers."
+5,attach,method,"(options - attach options: rid, sid, jid)",Attach to an existing connection (useful for reusing server-side sessions).
+6,connect,method,"(options, id?, name?, password?)",Connect the client to the server.
+7,disconnect,method,"(...args)",Disconnect the client from the server. Returns boolean or Promise<void>.
+8,getConnectionTimes,method,N/A,Returns measured connection timing information.
+9,getJid,method,N/A,Returns the XMPP JID associated with the connection.
+10,getLogs,method,N/A,Returns internal logs including connection logs and metadata.
+11,initJitsiConference,method,"(name, options)",Creates and initializes a `JitsiConference` instance and returns it.
+12,removeEventListener,method,"(event, listener)",Removes a previously registered event listener.
+13,removeFeature,method,"(feature, submit?)","Removes a feature from the local participant's supported feature list."
+14,setToken,method,"(token)",Allows renewing the authentication token when it is about to expire.
+```
+
+---
+Source: workspace reference files.
+```

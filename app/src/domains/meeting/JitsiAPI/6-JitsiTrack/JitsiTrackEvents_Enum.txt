@@ -1,0 +1,12 @@
+﻿```csv
+stt,enum,value,description
+1,LOCAL_TRACK_STOPPED,"track.stopped","Local track was stopped/removed."
+2,NO_AUDIO_INPUT,"track.no_audio_input","Local audio track has no audio input signal from the selected microphone."
+3,NO_DATA_FROM_SOURCE,"track.no_data_from_source","Track is not receiving expected data even though the stream is not stopped."
+4,TRACK_AUDIO_LEVEL_CHANGED,"track.audioLevelsChanged","Track audio level changed. Args: level (number), optional TraceablePeerConnection for local tracks."
+5,TRACK_AUDIO_OUTPUT_CHANGED,"track.audioOutputChanged","Track audio output device changed."
+6,TRACK_MUTE_CHANGED,"track.trackMuteChanged","Track mute state changed."
+7,TRACK_OWNER_SET,"track.owner_set","A new owner assigned to a remote track when SSRC rewriting is enabled."
+8,TRACK_STREAMING_STATUS_CHANGED,"track.streaming_status_changed","Video track streaming status changed (active|inactive|interrupted|restoring)."
+9,TRACK_VIDEOTYPE_CHANGED,"track.videoTypeChanged","Track video type changed (camera|desktop)."
+```
