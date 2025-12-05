@@ -7,9 +7,12 @@ import { RemoteVideo } from './RemoteVideo'
 interface Participant {
     id: string | number
     displayName: string
-    isMuted: boolean
-    isLocalParticipant: boolean
+    isAudioMuted: boolean
+    isVideoMuted: boolean
+    isLocal: boolean
+    isDominantSpeaker?: boolean
     videoTrack?: any
+    audioTrack?: any
     imageUrl?: string
 }
 
@@ -17,12 +20,14 @@ interface MeetingContainerProps {
     participants: Participant[]
     currentLayout: 'auto' | 'grid' | 'sidebar' | 'spotlight'
     isLoading?: boolean
+    dominantSpeakerId?: string | null
 }
 
 export function MeetingContainer({
     participants,
     currentLayout,
     isLoading = false,
+    dominantSpeakerId,
 }: MeetingContainerProps) {
     if (isLoading) {
         return (
@@ -51,19 +56,25 @@ export function MeetingContainer({
         return (
             <div className="w-full h-full flex flex-col gap-4">
                 <div className="flex-1 min-h-0">
-                    {mainParticipant.isLocalParticipant ? (
+                    {mainParticipant.isLocal ? (
                         <LocalVideo
                             name={mainParticipant.displayName}
-                            isMuted={mainParticipant.isMuted}
+                            isAudioMuted={mainParticipant.isAudioMuted}
+                            isVideoMuted={mainParticipant.isVideoMuted}
                             videoTrack={mainParticipant.videoTrack}
                             imageUrl={mainParticipant.imageUrl}
                         />
                     ) : (
                         <RemoteVideo
                             name={mainParticipant.displayName}
-                            isMuted={mainParticipant.isMuted}
+                            isAudioMuted={mainParticipant.isAudioMuted}
+                            isVideoMuted={mainParticipant.isVideoMuted}
                             videoTrack={mainParticipant.videoTrack}
+                            audioTrack={mainParticipant.audioTrack}
                             imageUrl={mainParticipant.imageUrl}
+                            isDominantSpeaker={
+                                dominantSpeakerId === String(mainParticipant.id)
+                            }
                         />
                     )}
                 </div>
@@ -71,19 +82,26 @@ export function MeetingContainer({
                     <div className="grid grid-cols-4 gap-2 h-24">
                         {sidebarParticipants.map((participant) => (
                             <div key={participant.id}>
-                                {participant.isLocalParticipant ? (
+                                {participant.isLocal ? (
                                     <LocalVideo
                                         name={participant.displayName}
-                                        isMuted={participant.isMuted}
+                                        isAudioMuted={participant.isAudioMuted}
+                                        isVideoMuted={participant.isVideoMuted}
                                         videoTrack={participant.videoTrack}
                                         imageUrl={participant.imageUrl}
                                     />
                                 ) : (
                                     <RemoteVideo
                                         name={participant.displayName}
-                                        isMuted={participant.isMuted}
+                                        isAudioMuted={participant.isAudioMuted}
+                                        isVideoMuted={participant.isVideoMuted}
                                         videoTrack={participant.videoTrack}
+                                        audioTrack={participant.audioTrack}
                                         imageUrl={participant.imageUrl}
+                                        isDominantSpeaker={
+                                            dominantSpeakerId ===
+                                            String(participant.id)
+                                        }
                                     />
                                 )}
                             </div>
@@ -102,19 +120,25 @@ export function MeetingContainer({
         return (
             <div className="flex gap-4 h-full">
                 <div className="flex-1">
-                    {mainParticipant.isLocalParticipant ? (
+                    {mainParticipant.isLocal ? (
                         <LocalVideo
                             name={mainParticipant.displayName}
-                            isMuted={mainParticipant.isMuted}
+                            isAudioMuted={mainParticipant.isAudioMuted}
+                            isVideoMuted={mainParticipant.isVideoMuted}
                             videoTrack={mainParticipant.videoTrack}
                             imageUrl={mainParticipant.imageUrl}
                         />
                     ) : (
                         <RemoteVideo
                             name={mainParticipant.displayName}
-                            isMuted={mainParticipant.isMuted}
+                            isAudioMuted={mainParticipant.isAudioMuted}
+                            isVideoMuted={mainParticipant.isVideoMuted}
                             videoTrack={mainParticipant.videoTrack}
+                            audioTrack={mainParticipant.audioTrack}
                             imageUrl={mainParticipant.imageUrl}
+                            isDominantSpeaker={
+                                dominantSpeakerId === String(mainParticipant.id)
+                            }
                         />
                     )}
                 </div>
@@ -122,19 +146,26 @@ export function MeetingContainer({
                     <div className="w-64 flex flex-col gap-2 overflow-y-auto">
                         {sidebarParticipants.map((participant) => (
                             <div key={participant.id} className="h-40">
-                                {participant.isLocalParticipant ? (
+                                {participant.isLocal ? (
                                     <LocalVideo
                                         name={participant.displayName}
-                                        isMuted={participant.isMuted}
+                                        isAudioMuted={participant.isAudioMuted}
+                                        isVideoMuted={participant.isVideoMuted}
                                         videoTrack={participant.videoTrack}
                                         imageUrl={participant.imageUrl}
                                     />
                                 ) : (
                                     <RemoteVideo
                                         name={participant.displayName}
-                                        isMuted={participant.isMuted}
+                                        isAudioMuted={participant.isAudioMuted}
+                                        isVideoMuted={participant.isVideoMuted}
                                         videoTrack={participant.videoTrack}
+                                        audioTrack={participant.audioTrack}
                                         imageUrl={participant.imageUrl}
+                                        isDominantSpeaker={
+                                            dominantSpeakerId ===
+                                            String(participant.id)
+                                        }
                                     />
                                 )}
                             </div>
@@ -157,19 +188,25 @@ export function MeetingContainer({
         <div className={`grid ${gridClasses[currentLayout]} gap-2 h-full`}>
             {participants.map((participant) => (
                 <div key={participant.id}>
-                    {participant.isLocalParticipant ? (
+                    {participant.isLocal ? (
                         <LocalVideo
                             name={participant.displayName}
-                            isMuted={participant.isMuted}
+                            isAudioMuted={participant.isAudioMuted}
+                            isVideoMuted={participant.isVideoMuted}
                             videoTrack={participant.videoTrack}
                             imageUrl={participant.imageUrl}
                         />
                     ) : (
                         <RemoteVideo
                             name={participant.displayName}
-                            isMuted={participant.isMuted}
+                            isAudioMuted={participant.isAudioMuted}
+                            isVideoMuted={participant.isVideoMuted}
                             videoTrack={participant.videoTrack}
+                            audioTrack={participant.audioTrack}
                             imageUrl={participant.imageUrl}
+                            isDominantSpeaker={
+                                dominantSpeakerId === String(participant.id)
+                            }
                         />
                     )}
                 </div>

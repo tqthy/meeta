@@ -1,29 +1,84 @@
-import React, { useRef, useState } from 'react'
+'use client'
+
+import React, { useRef, useEffect, useState } from 'react'
 import { Loader } from 'lucide-react'
 import { StatusIndicators, VideoPlaceholder } from './video-tile'
+import { trackService } from '@/domains/meeting/services'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 interface LocalVideoProps {
     name: string
-    isMuted?: boolean
-    videoTrack?: any
+    isAudioMuted?: boolean
+    isVideoMuted?: boolean
+    videoTrack?: any // JitsiLocalTrack
     imageUrl?: string
+    isActive?: boolean
 }
 
 export function LocalVideo({
     name,
-    isMuted = false,
+    isAudioMuted = true,
+    isVideoMuted = true,
     videoTrack,
     imageUrl,
+    isActive = false,
 }: LocalVideoProps) {
     const videoRef = useRef<HTMLVideoElement>(null)
-    const [isLoading] = useState(false)
-    const [hasError] = useState(false)
-    const [hasVideoStream] = useState(false)
+    const [isLoading, setIsLoading] = useState(false)
+    const [hasError, setHasError] = useState(false)
+    const [hasVideoStream, setHasVideoStream] = useState(false)
 
-    const isVideoTrackMuted = true
-    const isAudioTrackMuted = isMuted
-    const isActive = Boolean(videoTrack && !isVideoTrackMuted)
+    // Attach video track to the video element
+    useEffect(() => {
+        const videoElement = videoRef.current
+        if (!videoElement) return
+
+        if (videoTrack && !isVideoMuted) {
+            setIsLoading(true)
+            setHasError(false)
+
+            try {
+                // Get the MediaStream from the track
+                const stream = trackService.getMediaStream(videoTrack)
+                if (stream) {
+                    videoElement.srcObject = stream
+                    videoElement
+                        .play()
+                        .then(() => {
+                            setHasVideoStream(true)
+                            setIsLoading(false)
+                        })
+                        .catch((err) => {
+                            console.error('Failed to play video:', err)
+                            setHasError(true)
+                            setIsLoading(false)
+                        })
+                } else {
+                    // Fallback to Jitsi attach method
+                    trackService.attachTrack(videoTrack, videoElement)
+                    setHasVideoStream(true)
+                    setIsLoading(false)
+                }
+            } catch (error) {
+                console.error('Failed to attach local video track:', error)
+                setHasError(true)
+                setIsLoading(false)
+            }
+        } else {
+            // No video track or muted - clear the video
+            videoElement.srcObject = null
+            setHasVideoStream(false)
+            setIsLoading(false)
+        }
+
+        return () => {
+            if (videoTrack && videoElement) {
+                videoElement.srcObject = null
+            }
+        }
+    }, [videoTrack, isVideoMuted])
+
+    const showVideo = hasVideoStream && !isLoading && !hasError && !isVideoMuted
 
     return (
         <div
@@ -37,16 +92,14 @@ export function LocalVideo({
                 muted
                 playsInline
                 className={`w-full h-full object-cover ${
-                    hasVideoStream && !isLoading && !hasError
-                        ? 'block'
-                        : 'hidden'
+                    showVideo ? 'block' : 'hidden'
                 }`}
             />
 
             <VideoPlaceholder
                 name={name}
                 imageUrl={imageUrl}
-                isVisible={(!hasVideoStream || hasError) && !isLoading}
+                isVisible={!showVideo && !isLoading}
             />
 
             {isLoading && !hasError && (
@@ -57,13 +110,14 @@ export function LocalVideo({
 
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
 
-            <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/70 rounded text-white text-sm">
+            <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/70 rounded text-white text-sm flex items-center gap-1">
                 {name}
+                <span className="text-xs text-gray-400">(You)</span>
             </div>
 
             <StatusIndicators
-                isVideoMuted={isVideoTrackMuted}
-                isAudioMuted={isAudioTrackMuted}
+                isVideoMuted={isVideoMuted}
+                isAudioMuted={isAudioMuted}
             />
 
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />

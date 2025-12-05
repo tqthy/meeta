@@ -1,8 +1,12 @@
 import { configureStore } from '@reduxjs/toolkit'
 import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux'
+import { meetingReducer, trackReducer } from '@/domains/meeting/store'
 
 export const store = configureStore({
-    reducer: {},
+    reducer: {
+        meeting: meetingReducer,
+        tracks: trackReducer,
+    },
     middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware({
             serializableCheck: {
