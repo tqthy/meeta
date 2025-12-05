@@ -1,20 +1,9 @@
 /**
- * Meeting Services - Barrel Export
+ * meeting-database - Barrel Export
+ *
+ * Persistence domain that subscribes to meeting-runtime events
+ * and maps them into Prisma DTOs to persist meetings, participants, and logs.
  */
-
-// Runtime services (client-side)
-export { meetingService } from './meeting-runtime/meetingService'
-export { trackService } from './meeting-runtime/trackService'
-export { deviceService } from './meeting-runtime/deviceService'
-export { getJitsiMeetJS, isJitsiLoaded, getJitsiMeetJSSync } from './meeting-runtime/jitsiLoader'
-
-// Database services (server-side only)
-export {
-    meetingRecordService,
-    participantRecordService,
-    meetingLogService,
-    historyService,
-} from './meeting-database'
 
 // Types and DTOs
 export type {
@@ -38,11 +27,17 @@ export type {
     UpdateParticipantDTO,
     EventLogDTO,
     EventProcessingResult,
-} from './meeting-database'
+} from './types'
 
 export {
     isMeetingEvent,
     isParticipantEvent,
     isTrackEvent,
     validateRequiredFields,
-} from './meeting-database'
+} from './types'
+
+// Services
+export { meetingRecordService } from './meetingRecordService'
+export { participantRecordService } from './participantRecordService'
+export { meetingLogService } from './meetingLogService'
+export { historyService } from './historyService'
