@@ -49,7 +49,6 @@ export interface Participant {
 export interface MeetingConfig {
     roomName: string
     displayName: string
-    serverUrl: string
     jwt?: string
     startWithAudioMuted?: boolean
     startWithVideoMuted?: boolean

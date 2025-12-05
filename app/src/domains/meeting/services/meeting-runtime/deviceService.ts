@@ -11,7 +11,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { getJitsiMeetJS } from './jitsiLoader'
-import { DeviceInfo } from '../types/tracks'
+import { DeviceInfo } from '../../types/tracks'
 
 // Track storage - holds actual SDK track objects (not serializable)
 const trackStorage = new Map<string, any>()

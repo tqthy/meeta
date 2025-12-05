@@ -12,9 +12,9 @@
 
 import { useCallback, useEffect, useRef } from 'react'
 import { useAppDispatch, useAppSelector } from '@/store'
-import { meetingService } from '../services/meetingService'
-import { trackService } from '../services/trackService'
-import { deviceService } from '../services/deviceService'
+import { meetingService } from '../services/meeting-runtime/meetingService'
+import { trackService } from '../services/meeting-runtime/trackService'
+import { deviceService } from '../services/meeting-runtime/deviceService'
 import {
     setConnectionStatus,
     setConferenceStatus,
@@ -37,11 +37,8 @@ import {
 } from '../store/trackStore'
 import { MeetingConfig, Participant } from '../types/meeting'
 
-interface UseMeetingOptions {
-    serverUrl: string
-}
 
-export function useMeeting(options: UseMeetingOptions) {
+export function useMeeting() {
     const dispatch = useAppDispatch()
     const meetingState = useAppSelector((state) => state.meeting)
     const isJoiningRef = useRef(false)
@@ -196,7 +193,6 @@ export function useMeeting(options: UseMeetingOptions) {
                 const config: MeetingConfig = {
                     roomName,
                     displayName,
-                    serverUrl: options.serverUrl,
                 }
 
                 // Connect to server
@@ -222,7 +218,7 @@ export function useMeeting(options: UseMeetingOptions) {
                 isJoiningRef.current = false
             }
         },
-        [dispatch, options.serverUrl]
+        [dispatch]
     )
 
     /**

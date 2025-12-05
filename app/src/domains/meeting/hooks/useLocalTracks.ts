@@ -16,9 +16,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAppDispatch, useAppSelector } from '@/store'
-import { deviceService } from '../services/deviceService'
-import { trackService } from '../services/trackService'
-import { meetingService } from '../services/meetingService'
+import { deviceService } from '../services/meeting-runtime/deviceService'
+import { trackService } from '../services/meeting-runtime/trackService'
+import { meetingService } from '../services/meeting-runtime/meetingService'
 import {
     setLocalAudioTrack,
     setLocalVideoTrack,

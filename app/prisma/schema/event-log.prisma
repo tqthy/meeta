@@ -1,0 +1,29 @@
+// Meeting Log / Event Store
+// Stores raw events for auditing, replay, and deduplication
+
+model MeetingLog {
+  id String @id @default(cuid())
+
+  // Unique event identifier for deduplication
+  eventId String @unique
+
+  // Meeting reference (optional for cross-meeting queries)
+  meetingId String
+
+  // Event metadata
+  eventType String // e.g., "meeting.started", "participant.joined"
+  payload   Json // Raw event payload
+  timestamp DateTime // When the event occurred
+
+  // Processing status
+  status      String    @default("pending") // "pending", "processed", "failed"
+  processedAt DateTime? // When the event was processed
+  error       String?   @db.Text // Error message if failed
+
+  createdAt DateTime @default(now())
+
+  @@index([meetingId])
+  @@index([eventType])
+  @@index([status])
+  @@index([timestamp])
+}

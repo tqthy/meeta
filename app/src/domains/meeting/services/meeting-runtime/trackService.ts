@@ -10,7 +10,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { getJitsiMeetJS } from './jitsiLoader'
-import { LocalTrackInfo, RemoteTrackInfo, MediaType } from '../types/tracks'
+import { LocalTrackInfo, RemoteTrackInfo, MediaType } from '../../types/tracks'
 
 // Remote track storage (SDK objects, not serializable)
 const remoteTrackStorage = new Map<string, any>()

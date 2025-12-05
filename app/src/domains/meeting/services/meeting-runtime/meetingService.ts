@@ -12,7 +12,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { getJitsiMeetJS } from './jitsiLoader'
-import { MeetingConfig, Participant } from '../types/meeting'
+import { MeetingConfig, Participant } from '../../types/meeting'
 
 // Event handlers type
 interface MeetingEventHandlers {
