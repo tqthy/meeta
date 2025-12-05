@@ -1,0 +1,11 @@
+The following lists the members of the **JitsiConnectionEvents** enumeration in CSV format (index, enum, value, description). These events indicate connection-level lifecycle changes.
+
+```csv
+stt,enum,value,description
+1,CONNECTION_DISCONNECTED,"connection.connectionDisconnected","Indicates the connection was disconnected. Event provides a *msg* (string) with a disconnection reason."
+2,CONNECTION_ESTABLISHED,"connection.connectionEstablished","Indicates the connection has been established. Event provides an *id* (string) identifying the local endpoint."
+3,CONNECTION_FAILED,"connection.connectionFailed","Indicates the connection attempt failed. Event provides *errType* (JitsiConnectionErrors), *errReason* (string), *credentials* (object), and *errReasonDetails* (object)."
+4,CONNECTION_REDIRECTED,"connection.redirected","Connection was redirected (e.g. to a visitor node)."
+5,DISPLAY_NAME_REQUIRED,"connection.display_name_required","Indicates a display name is required for this connection (e.g. lobby may require it)."
+6,PROPERTIES_UPDATED,"connection.propertiesUpdated","Indicates connection properties were updated. Event provides *properties* (object) such as shard or region."
+```

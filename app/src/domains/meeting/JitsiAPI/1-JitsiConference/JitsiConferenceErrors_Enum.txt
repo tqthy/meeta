@@ -1,0 +1,35 @@
+```plaintext
+**Title:** `JitsiConferenceErrors` (Enumeration)
+
+**Purpose:** Error codes (enums) related to `JitsiConference`. Use these to classify and handle errors during conference lifecycle and room control.
+
+**Members (CSV)**
+```csv
+stt,enum,value,description
+1,AUTHENTICATION_REQUIRED,"conference.authenticationRequired","Indicates the client must be authenticated to create/join the conference."
+2,CHAT_ERROR,"conference.chatError","Indicates a chat-related error occurred."
+3,CONFERENCE_ACCESS_DENIED,"conference.connectionError.accessDenied","Indicates access to the room was denied (e.g. after lobby approval was declined)."
+4,CONFERENCE_DESTROYED,"conference.destroyed","Indicates the conference has been destroyed."
+5,CONFERENCE_MAX_USERS,"conference.max_users","Indicates the maximum user limit for the conference has been reached."
+6,CONNECTION_ERROR,"conference.connectionError","Indicates a connection error occurred while trying to join the conference."
+7,DISPLAY_NAME_REQUIRED,"conference.display_name_required","Indicates a display name is required (e.g. lobby may require it)."
+8,FOCUS_DISCONNECTED,"conference.focusDisconnected","Indicates the focus component disconnected."
+9,FOCUS_LEFT,"conference.focusLeft","Indicates the focus component left the conference."
+10,GRACEFUL_SHUTDOWN,"conference.gracefulShutdown","Indicates a graceful shutdown was initiated."
+11,ICE_FAILED,"conference.iceFailed","Indicates media ICE negotiation failed."
+12,INCOMPATIBLE_SERVER_VERSIONS,"conference.incompatible_server_versions","Indicates incompatible server component versions detected."
+13,MEMBERS_ONLY_ERROR,"conference.connectionError.membersOnly","Indicates the room is members-only and access was denied."
+14,NOT_ALLOWED_ERROR,"conference.connectionError.notAllowed","Indicates access is not allowed when trying to join the conference."
+15,OFFER_ANSWER_FAILED,"conference.offerAnswerFailed","Indicates SDP offer/answer exchange failed."
+16,PASSWORD_NOT_SUPPORTED,"conference.passwordNotSupported","Indicates setting a password is not supported for this conference."
+17,PASSWORD_REQUIRED,"conference.passwordRequired","Indicates a password is required to join the conference."
+18,RESERVATION_ERROR,"conference.reservationError","Indicates a reservation system error occurred."
+19,SETTINGS_ERROR,"conference.settingsError","Indicates a settings-related error occurred."
+20,VIDEOBRIDGE_NOT_AVAILABLE,"conference.videobridgeNotAvailable","Indicates no videobridge is available."
+```
+
+**Usage Notes:** Map these enums to UI behavior (show messages, request password, prompt login, etc.).
+
+---
+Source: workspace reference files.
+```

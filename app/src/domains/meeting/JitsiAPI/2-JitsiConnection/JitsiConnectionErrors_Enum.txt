@@ -1,0 +1,13 @@
+﻿```plaintext
+The following lists members of **JitsiConnectionErrors** (connection-level errors) in CSV format.
+
+```csv
+stt,enum,value,description
+1,CONFERENCE_REQUEST_FAILED,"connection.conferenceRequestFailed","Occurs when the conference request to Jicofo failed."
+2,CONNECTION_DROPPED_ERROR,"connection.droppedError","Indicates the connection was dropped unexpectedly, typically due to network issues (e.g. BOSH session timeout)."
+3,NOT_LIVE_ERROR,"connection.notLiveError","Indicates the conference is not yet live/ready as reported by Jicofo."
+4,OTHER_ERROR,"connection.otherError","An unspecified connection error."
+5,PASSWORD_REQUIRED,"connection.passwordRequired","Indicates a password is required to join."
+6,SERVER_ERROR,"connection.serverError","Indicates the connection was terminated due to repeated server (HTTP 5xx) errors."
+7,SHARD_CHANGED_ERROR,"connection.shardChangedError","Indicates the connection was disconnected because the conference was moved to a different shard."
+```

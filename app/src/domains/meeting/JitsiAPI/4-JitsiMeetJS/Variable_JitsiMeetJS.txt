@@ -1,0 +1,38 @@
+﻿```plaintext
+`JitsiMeetJS` is the public API entry for the `lib-jitsi-meet` library. It exposes top-level factories, helpers, constants and utilities used to initialize and interact with Jitsi features.
+
+Summary table:
+
+| Stt | Name | Type | Detailed description |
+| ---: | --- | --- | --- |
+| 1 | analytics | property | Analytics configuration and helpers.
+| 2 | constants | property | Library constants (recording, sipVideoGW, trackStreamingStatus, transcriptionStatus, etc.).
+| 3 | errors | property | Error types related to conference, connection, and tracks.
+| 4 | errorTypes | property | Error type definitions (e.g. `JitsiTrackError`).
+| 5 | events | property | Top-level event groups: conference, connection, connectionQuality, mediaDevices, rtcstats, track, etc.
+| 6 | JitsiConnection | property | Exposes the `JitsiConnection` constructor/type.
+| 7 | logLevels | property | Log level definitions.
+| 8 | mediaDevices | property | Media devices utilities (`JitsiMediaDevices`).
+| 9 | ProxyConnectionService | property | Experimental API for proxying remote peer connections (e.g. wireless screen sharing).
+| 10 | rtcstats | property | Methods to interact with rtcstats service (isTraceAvailable, on, sendIdentityEntry, sendStatsEntry).
+| 11 | util | property | Utility namespace containing browser helpers and script loaders.
+| 12 | version | property | Library version string.
+| 13 | addGlobalLogTransport | method | Register a global log transport.
+| 14 | createAudioMixer | method | Create an AudioMixer to merge multiple MediaStreams.
+| 15 | createLocalTracks | method | Create local media tracks (`JitsiLocalTrack[]`) from options.
+| 16 | createLocalTracksFromMediaStreams | method | Create `JitsiLocalTrack` instances from provided MediaStream tracks.
+| 17 | createTrackVADEmitter | method | Create a TrackVADEmitter (VAD scoring for audio tracks).
+| 18 | getActiveAudioDevice | method | Return the currently active audio input device (detects active signal).
+| 19 | init | method | Initialize the Jitsi Meet library runtime.
+| 20 | isCollectingLocalStats | method | Check whether local stats collection is enabled.
+| 21 | isDesktopSharingEnabled | method | Returns whether desktop sharing is enabled.
+| 22 | isMultipleAudioInputSupported | method | Check if multiple audio inputs are supported in the current environment.
+| 23 | isWebRtcSupported | method | Returns whether current environment supports WebRTC.
+| 24 | joinConference | method | Convenience method to create and join a `JitsiConference`.
+| 25 | removeGlobalLogTransport | method | Remove a global log transport.
+| 26 | runPreCallTest | method | Run a pre-call network test (requires ICE servers list).
+| 27 | setGlobalLogOptions | method | Set global logging options.
+| 28 | setLogLevel | method | Set the log level for the default logger.
+| 29 | setLogLevelById | method | Set a log level for a specific logger by id.
+| 30 | setNetworkInfo | method | Inform the library about current network status (online/offline).
+```

@@ -1,0 +1,43 @@
+﻿```plaintext
+**Class JitsiParticipant** represents a participant (member) in a conference.
+
+The following lists constructors and methods in CSV form:
+
+```csv
+Stt,Name,Type,Parameters and description,Description
+1,constructor,constructor,"jid: string, conference: JitsiConference, displayName: string, hidden: boolean, statsID?: string, status?: string, identity?: object, isReplacing?: boolean, isReplaced?: boolean, isSilent?: boolean","Create a new JitsiParticipant instance."
+2,_setSources,method,"(mediaType: MediaType, muted: boolean, sourceName: string, videoType: VideoType)",Set source information for the participant.
+3,getBotType,method,N/A,Return the participant's bot type.
+4,getConference,method,N/A,Return the associated JitsiConference.
+5,getConnectionJid,method,N/A,Return the participant's connection JID.
+6,getDisplayName,method,N/A,Return the participant's display name.
+7,getFeatures,method,N/A,Return a set of features for the participant.
+8,getId,method,N/A,Return the participant id.
+9,getIdentity,method,N/A,Return the XMPP identity object.
+10,getJid,method,N/A,Return the participant JID.
+11,getProperty,method,"(name: string)",Return a participant property value.
+12,getRole,method,N/A,Return the participant role.
+13,getSources,method,N/A,Return the participant's source map (Map<MediaType, Map<string, ISourceInfo>>).
+14,getStatsID,method,N/A,Return the participant stats ID.
+15,getStatus,method,N/A,Return the participant status.
+16,getTracks,method,N/A,Return the participant's media tracks (JitsiRemoteTrack[]).
+17,getTracksByMediaType,method,"(mediaType: MediaType)",Return tracks filtered by media type.
+18,hasFeature,method,"(feature: string)",Return true if the participant has the feature.
+19,isAudioMuted,method,N/A,Return whether the participant's audio is muted.
+20,isHidden,method,N/A,Return whether the participant is hidden (e.g. recorder).
+21,isHiddenFromRecorder,method,N/A,Return whether participant is hidden from recorder.
+22,isModerator,method,N/A,Return whether the participant is a moderator.
+23,isReplaced,method,N/A,Return whether the participant has been replaced.
+24,isReplacing,method,N/A,Return whether the participant is replacing another.
+25,isSilent,method,N/A,Return whether the participant joined silent (no audio).
+26,isVideoMuted,method,N/A,Return whether the participant's video is muted.
+27,setBotType,method,"(newBotType: string)",Set the participant bot type.
+28,setConnectionJid,method,"(newJid: string)",Set the participant connection JID.
+29,setFeatures,method,"(newFeatures?: Set<string>)",Set the participant's features.
+30,setIsReplaced,method,"(newIsReplaced: boolean)",Mark the participant as replaced.
+31,setIsReplacing,method,"(newIsReplacing: boolean)",Mark the participant as replacing another.
+32,setIsSilent,method,"(newIsSilent: boolean)",Set silent participation state.
+33,setProperty,method,"(name: string, value: any)",Set a participant property and emit change if needed.
+34,setRole,method,"(newRole: string)",Set participant role.
+35,supportsDTMF,method,N/A,Return whether participant supports DTMF.
+```
