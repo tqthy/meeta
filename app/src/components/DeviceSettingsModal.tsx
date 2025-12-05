@@ -1,46 +1,29 @@
 /**
  * DeviceSettingsModal - UI component for device selection
- * Demonstrates proper usage of MediaManager and device preferences
  */
 
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useAppDispatch, useAppSelector } from '@/store/hooks'
-import {
-    setPreferredCameraDeviceId,
-    setPreferredMicDeviceId,
-    setPreferredAudioOutputDeviceId,
-    selectPreferredCameraDeviceId,
-    selectPreferredMicDeviceId,
-    selectPreferredAudioOutputDeviceId,
-} from '@/store/slices/settingsSlice'
-import { MediaManager } from '@/services/MediaManager'
 
 interface DeviceSettingsModalProps {
-    mediaManager: MediaManager | null
+    mediaManager?: unknown
     isOpen: boolean
     onClose: () => void
 }
 
 export function DeviceSettingsModal({
-    mediaManager,
     isOpen,
     onClose,
 }: DeviceSettingsModalProps) {
-    const dispatch = useAppDispatch()
-
-    // Get preferences from Redux
-    const preferredCameraId = useAppSelector(selectPreferredCameraDeviceId)
-    const preferredMicId = useAppSelector(selectPreferredMicDeviceId)
-    const preferredOutputId = useAppSelector(selectPreferredAudioOutputDeviceId)
-
     // Local state for devices
     const [cameras, setCameras] = useState<MediaDeviceInfo[]>([])
     const [microphones, setMicrophones] = useState<MediaDeviceInfo[]>([])
     const [speakers, setSpeakers] = useState<MediaDeviceInfo[]>([])
-    const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [selectedCameraId, setSelectedCameraId] = useState<string>('')
+    const [selectedMicId, setSelectedMicId] = useState<string>('')
+    const [selectedSpeakerId, setSelectedSpeakerId] = useState<string>('')
 
     // Load available devices
     useEffect(() => {
@@ -79,71 +62,20 @@ export function DeviceSettingsModal({
     }, [isOpen])
 
     // Handle camera selection
-    const handleCameraSelect = async (deviceId: string) => {
-        const device = cameras.find((d) => d.deviceId === deviceId)
-        if (!device || !mediaManager) return
-
-        setIsLoading(true)
+    const handleCameraSelect = (deviceId: string) => {
+        setSelectedCameraId(deviceId)
         setError(null)
-
-        try {
-            // Switch camera in MediaManager
-            await mediaManager.switchCamera(deviceId)
-
-            // Save preference in Redux
-            dispatch(
-                setPreferredCameraDeviceId({
-                    deviceId,
-                    deviceLabel: device.label,
-                })
-            )
-        } catch (err) {
-            console.error('Failed to switch camera:', err)
-            setError('Failed to switch camera')
-        } finally {
-            setIsLoading(false)
-        }
     }
 
     // Handle microphone selection
-    const handleMicSelect = async (deviceId: string) => {
-        const device = microphones.find((d) => d.deviceId === deviceId)
-        if (!device || !mediaManager) return
-
-        setIsLoading(true)
+    const handleMicSelect = (deviceId: string) => {
+        setSelectedMicId(deviceId)
         setError(null)
-
-        try {
-            await mediaManager.switchMicrophone(deviceId)
-
-            dispatch(
-                setPreferredMicDeviceId({
-                    deviceId,
-                    deviceLabel: device.label,
-                })
-            )
-        } catch (err) {
-            console.error('Failed to switch microphone:', err)
-            setError('Failed to switch microphone')
-        } finally {
-            setIsLoading(false)
-        }
     }
 
-    // Handle speaker selection (no switching needed, just preference)
-    const handleSpeakerSelect = async (deviceId: string) => {
-        const device = speakers.find((d) => d.deviceId === deviceId)
-        if (!device) return
-
-        dispatch(
-            setPreferredAudioOutputDeviceId({
-                deviceId,
-                deviceLabel: device.label,
-            })
-        )
-
-        // In a real app, you'd also set the sinkId on audio elements
-        // audioElement.setSinkId(deviceId)
+    // Handle speaker selection
+    const handleSpeakerSelect = (deviceId: string) => {
+        setSelectedSpeakerId(deviceId)
     }
 
     if (!isOpen) return null
@@ -166,9 +98,8 @@ export function DeviceSettingsModal({
                     </label>
                     <select
                         className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                        value={preferredCameraId || ''}
+                        value={selectedCameraId}
                         onChange={(e) => handleCameraSelect(e.target.value)}
-                        disabled={isLoading}
                     >
                         <option value="">Select Camera</option>
                         {cameras.map((camera) => (
@@ -190,9 +121,8 @@ export function DeviceSettingsModal({
                     </label>
                     <select
                         className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                        value={preferredMicId || ''}
+                        value={selectedMicId}
                         onChange={(e) => handleMicSelect(e.target.value)}
-                        disabled={isLoading}
                     >
                         <option value="">Select Microphone</option>
                         {microphones.map((mic) => (
@@ -211,9 +141,8 @@ export function DeviceSettingsModal({
                     </label>
                     <select
                         className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                        value={preferredOutputId || ''}
+                        value={selectedSpeakerId}
                         onChange={(e) => handleSpeakerSelect(e.target.value)}
-                        disabled={isLoading}
                     >
                         <option value="">Select Speaker</option>
                         {speakers.map((speaker) => (
@@ -246,15 +175,9 @@ export function DeviceSettingsModal({
                     <button
                         onClick={onClose}
                         className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition"
-                        disabled={isLoading}
                     >
                         Close
                     </button>
-                    {isLoading && (
-                        <div className="px-4 py-2 text-blue-600">
-                            Applying changes...
-                        </div>
-                    )}
                 </div>
             </div>
         </div>

@@ -60,7 +60,7 @@ config.startAudioOnly = false;
 config.startAudioMuted = 10;
 config.startWithAudioMuted = false;
 config.startSilent = false;
-config.enableOpusRed = true;
+config.enableOpusRed = false;
 config.disableAudioLevels = false;
 config.enableNoisyMicDetection = true;
 
@@ -129,10 +129,9 @@ config.welcomePage = {
 };
 
 // Close page.
-config.enableClosePage = true;
+config.enableClosePage = false;
 
 // Default language.
-config.defaultLanguage = 'en';
 // Require users to always specify a display name.
 config.requireDisplayName = false;
 
