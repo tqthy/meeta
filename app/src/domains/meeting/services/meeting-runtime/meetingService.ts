@@ -214,10 +214,22 @@ async function disconnect(): Promise<void> {
 
 /**
  * Adds a local track to the conference
+ * If a track of the same type already exists, it will be replaced
  */
 async function addTrack(track: any): Promise<void> {
     if (conference) {
-        await conference.addTrack(track)
+        const trackType = track.getType?.()
+        const localTracks = conference.getLocalTracks() || []
+        const existingTrack = localTracks.find(
+            (t: any) => t.getType?.() === trackType
+        )
+
+        if (existingTrack) {
+            // Replace the existing track instead of adding a new one
+            await conference.replaceTrack(existingTrack, track)
+        } else {
+            await conference.addTrack(track)
+        }
     }
 }
 
