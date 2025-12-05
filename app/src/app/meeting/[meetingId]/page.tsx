@@ -15,14 +15,14 @@ import {
     useMeeting,
     useLocalTracks,
     useRemoteTracks,
+    useEventPersistence,
 } from '@/domains/meeting/hooks'
-import { trackService } from '@/domains/meeting/services'
+import { trackService, meetingEventEmitter } from '@/domains/meeting/services'
+import { useSession } from '@/lib/auth-client'
 
 type LayoutType = 'auto' | 'grid' | 'sidebar' | 'spotlight'
 
 // Jitsi server URL - should come from env in production
-const JITSI_SERVER_URL =
-    process.env.NEXT_PUBLIC_JITSI_SERVER_URL || 'https://meet.jitsi.si'
 
 // TODO: Replace with actual messages data
 const mockMessages: any[] = []
@@ -45,10 +45,25 @@ export default function MeetingPage() {
     const [initialCameraEnabled, setInitialCameraEnabled] = useState(false)
     const [hasInitialized, setHasInitialized] = useState(false)
 
+    // Auth session - get real user ID
+    const { data: session } = useSession()
+    const userId = session?.user?.id
+
     // Meeting hooks
-    const meeting = useMeeting({ serverUrl: JITSI_SERVER_URL })
+    const meeting = useMeeting()
     const localTracks = useLocalTracks()
     const remoteTracks = useRemoteTracks()
+
+    // Event persistence - sends meeting events to backend for storage
+    const { flushEvents } = useEventPersistence(meetingId, {
+        debug: process.env.NODE_ENV === 'development',
+        onEventsSent: (count) => {
+            console.log(`[MeetingPage] ${count} events persisted`)
+        },
+        onError: (error) => {
+            console.error('[MeetingPage] Event persistence error:', error)
+        },
+    })
 
     // Load settings from session storage
     useEffect(() => {
@@ -94,6 +109,27 @@ export default function MeetingPage() {
         joinMeeting,
     ])
 
+    // Emit meeting.started event when successfully joined (only if authenticated)
+    useEffect(() => {
+        if (meetingIsJoined && meetingId && userName && userId) {
+            meetingEventEmitter.emitMeetingStarted({
+                meetingId,
+                roomName: meetingId,
+                hostUserId: userId,
+                startedAt: new Date().toISOString(),
+            })
+
+            meetingEventEmitter.emitParticipantJoined({
+                participantId: `${meetingId}-${userId}`,
+                userId: userId,
+                meetingId,
+                displayName: userName,
+                role: 'HOST',
+                joinedAt: new Date().toISOString(),
+            })
+        }
+    }, [meetingIsJoined, meetingId, userName, userId])
+
     // Enable tracks after joining based on initial settings
     useEffect(() => {
         if (meetingIsJoined) {
@@ -124,6 +160,22 @@ export default function MeetingPage() {
     }, [localTracks])
 
     const handleLeave = useCallback(async () => {
+        // Only emit events if user is authenticated
+        if (userId) {
+            // Emit participant left event
+            meetingEventEmitter.emitParticipantLeft(
+                meetingId,
+                `${meetingId}-${userId}`,
+                userId
+            )
+
+            // Emit meeting ended event
+            meetingEventEmitter.emitMeetingEnded(meetingId)
+
+            // Flush any pending events before leaving
+            await flushEvents()
+        }
+
         // Release all tracks first
         await localTracks.releaseAllTracks()
 
@@ -132,7 +184,7 @@ export default function MeetingPage() {
 
         // Navigate back
         router.push('/dashboard')
-    }, [localTracks, meeting, router])
+    }, [localTracks, meeting, router, meetingId, flushEvents, userId])
 
     const handleLayoutChange = useCallback((layout: LayoutType) => {
         setCurrentLayout(layout)
