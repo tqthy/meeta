@@ -275,6 +275,14 @@ Key conventions
 - Domain stores and hooks should accept or return only serializable payloads (do not store SDK objects in Redux or persisting stores).
 - Avoid importing browser-only libraries at module top-level; prefer dynamic `import()` or guarded `require` inside client-only initialization code. Domain `Agents.md` files contain domain-level examples.
 
+### Runtime vs Persistence Separation
+
+- **Separate domains**: Split meeting logic into two domains: `meeting-runtime` and `meeting-database`.
+- **`meeting-runtime` responsibilities**: Host all Jitsi SDK integration (connection, conference, tracks, participants). Contain only in-memory hooks, services, and stores. Must not import Prisma or any database code.
+- **Events as the contract**: `meeting-runtime` emits normalized, serializable domain events (for example: `meeting.started`, `meeting.ended`, `participant.joined`, `participant.left`, `track.added`, `track.removed`). Events must be free of SDK objects and safe to serialize and forward between domains or processes.
+- **`meeting-database` responsibilities**: Subscribe to the serializable events emitted by `meeting-runtime`, map them into Prisma DTOs, and persist meeting metadata, participants, and logs. Provide services such as `meetingRecordService`, `participantRecordService`, and `meetingLogService` for this work.
+- **Design guidance**: Keep this repo-level note concise; put detailed event shapes, mapping rules, and idempotency expectations in domain-local `agents.md` files under `src/domains/meeting-runtime/` and `src/domains/meeting-database/`.
+
 Logging & generated artifacts
 
 - Store agent-generated artifacts such as migration notes and refactoring logs in `/ai_logs` and add that folder to `.gitignore`.

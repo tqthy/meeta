@@ -28,10 +28,16 @@ src/domains/meeting/
 		useLocalTracks.ts
 		useRemoteTracks.ts
 	/services
-		meetingService.ts
-		trackService.ts
-		deviceService.ts
-		jitsiLoader.ts   # optional central getJitsiMeetJS
+		/meeting-runtime
+			Agents.md               # runtime guidance, SDK adapters, in-memory stores
+			deviceService.ts
+			jitsiLoader.ts          # dynamic SDK loader (client-only)
+			meetingService.ts
+			trackService.ts
+		/meeting-database
+			agents.md               # persistence guidance, Prisma mappings
+			historyService.ts
+		index.ts
 	/store
 		meetingStore.ts
 		trackStore.ts
@@ -93,3 +99,15 @@ Logging & artifacts
 Notes
 
 - Keep examples and long code snippets in `src/domains/meeting/services/` (for example `jitsiLoader.ts`), not duplicated here. This `Agents.md` should contain domain-specific responsibilities and quickstarter snippets only.
+
+---
+
+### Runtime vs Persistence (high-level)
+
+- **Separation of concerns**: The meeting domain is split into two service folders: `services/meeting-runtime` (SDK + in-memory runtime) and `services/meeting-database` (DB persistence via Prisma).
+- **Top-level scope**: This file provides high-level descriptions and pointers. Detailed event shapes, mapping rules, and idempotency guidance live in the service-level `Agents.md` files:
+    - `src/domains/meeting/services/meeting-runtime/Agents.md` — runtime details, SDK loader, event emission patterns.
+    - `src/domains/meeting/services/meeting-database/agents.md` — Prisma DTO mappings, deduplication and retry strategies.
+- **Contract**: `meeting-runtime` emits JSON-serializable events (e.g. `meeting.started`, `participant.joined`, `track.added`) which `meeting-database` subscribes to and persists. Keep events free of SDK objects.
+
+For implementation guidance and examples, open the service-level `Agents.md` files listed above.

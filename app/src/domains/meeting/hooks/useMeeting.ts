@@ -12,9 +12,9 @@
 
 import { useCallback, useEffect, useRef } from 'react'
 import { useAppDispatch, useAppSelector } from '@/store'
-import { meetingService } from '../services/meetingService'
-import { trackService } from '../services/trackService'
-import { deviceService } from '../services/deviceService'
+import { meetingService } from '../services/meeting-runtime/meetingService'
+import { trackService } from '../services/meeting-runtime/trackService'
+import { deviceService } from '../services/meeting-runtime/deviceService'
 import {
     setConnectionStatus,
     setConferenceStatus,

@@ -12,7 +12,7 @@
 
 import { useCallback, useEffect, useRef, useMemo } from 'react'
 import { useAppSelector } from '@/store'
-import { trackService } from '../services/trackService'
+import { trackService } from '../services/meeting-runtime/trackService'
 import { RemoteTrackInfo } from '../types/tracks'
 
 interface RemoteTrackWithAttach extends RemoteTrackInfo {
