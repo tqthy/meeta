@@ -53,6 +53,10 @@ export function RemoteVideo({
                             setIsLoading(false)
                         })
                         .catch((err) => {
+                            // AbortError is expected when track changes rapidly
+                            if (err.name === 'AbortError') {
+                                return
+                            }
                             console.error('Failed to play remote video:', err)
                             setHasError(true)
                             setIsLoading(false)
@@ -93,6 +97,10 @@ export function RemoteVideo({
                 if (stream) {
                     audioElement.srcObject = stream
                     audioElement.play().catch((err) => {
+                        // AbortError is expected when track changes rapidly
+                        if (err.name === 'AbortError') {
+                            return
+                        }
                         console.error('Failed to play remote audio:', err)
                     })
                 } else {

@@ -49,6 +49,10 @@ export function LocalVideo({
                             setIsLoading(false)
                         })
                         .catch((err) => {
+                            // AbortError is expected when track changes rapidly
+                            if (err.name === 'AbortError') {
+                                return
+                            }
                             console.error('Failed to play video:', err)
                             setHasError(true)
                             setIsLoading(false)
