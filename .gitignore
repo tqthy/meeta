@@ -1,3 +1,4 @@
 ./scripts
 
 **/ai_logs/**
+.github/copilot-instructions.md
