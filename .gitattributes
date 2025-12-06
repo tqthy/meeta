@@ -1,0 +1,3 @@
+# Ensure scripts keep Unix-style newlines so they execute correctly within Linux containers
+*.sh text eol=lf
+jitsi-infrastructure/base/rootfs/** text eol=lf

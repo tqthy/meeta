@@ -4,6 +4,21 @@
 # Run: docker compose up -d
 
 services:
+  # Local base images required by service Dockerfiles
+  base:
+    build:
+      context: ./base
+      dockerfile: Dockerfile
+    image: jitsi/base:latest
+    # no container needed; this service exists so 'docker compose build' creates the image
+
+  base-java:
+    build:
+      context: .
+      dockerfile: base-java/Dockerfile
+    image: jitsi/base-java:latest
+    # no container needed; this service exists so 'docker compose build' creates the image
+
   # ============================================================================
   # MEETA APPLICATION SERVICES
   # ============================================================================
@@ -52,7 +67,10 @@ services:
 
   # Frontend
   web:
-    image: jitsi/web:${JITSI_IMAGE_VERSION:-unstable}
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    image: meeta/web:local
     restart: ${RESTART_POLICY:-unless-stopped}
     ports:
       - "${HTTP_PORT}:80"
@@ -251,7 +269,10 @@ services:
 
   # XMPP server
   prosody:
-    image: jitsi/prosody:${JITSI_IMAGE_VERSION:-unstable}
+    build:
+      context: .
+      dockerfile: prosody/Dockerfile
+    image: meeta/prosody:local
     restart: ${RESTART_POLICY:-unless-stopped}
     expose:
       - "${XMPP_PORT:-5222}"
@@ -412,7 +433,10 @@ services:
 
   # Focus component
   jicofo:
-    image: jitsi/jicofo:${JITSI_IMAGE_VERSION:-unstable}
+    build:
+      context: .
+      dockerfile: jicofo/Dockerfile
+    image: meeta/jicofo:local
     restart: ${RESTART_POLICY:-unless-stopped}
     ports:
       - "127.0.0.1:${JICOFO_REST_PORT:-8888}:8888"
@@ -516,7 +540,10 @@ services:
 
   # Video bridge
   jvb:
-    image: jitsi/jvb:${JITSI_IMAGE_VERSION:-unstable}
+    build:
+      context: .
+      dockerfile: jvb/Dockerfile
+    image: meeta/jvb:local
     restart: ${RESTART_POLICY:-unless-stopped}
     ports:
       - "${JVB_PORT:-10000}:${JVB_PORT:-10000}/udp"
@@ -544,6 +571,7 @@ services:
       - JVB_ADVERTISE_IPS
       - JVB_ADVERTISE_PRIVATE_CANDIDATES
       - JVB_AUTH_USER
+      - LOCAL_ADDRESS
       - JVB_AUTH_PASSWORD
       - JVB_BREWERY_MUC
       - JVB_CC_TRUST_BWE

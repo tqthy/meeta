@@ -1,0 +1,3 @@
+# Enforce Unix line endings for scripts and rootfs assets that run inside Linux containers
+*.sh text eol=lf
+base/rootfs/** text eol=lf
