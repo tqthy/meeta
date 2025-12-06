@@ -5,7 +5,7 @@ docker-compose.override.yml
 log-analyser/grafana
 **/.DS_Store
 **/.idea
-./jitsi-config
+jitsi-config/**/*
 
 # Exclude example files
 !*.example
