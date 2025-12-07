@@ -1,0 +1,36 @@
+```plaintext
+**Class JitsiConferenceEventManager** Sets up all event listeners related to a `JitsiConference` instance.
+
+The following lists constructors, properties and methods in CSV form:
+
+```csv
+Stt,Name,Type,Parameters and description,Description
+1,constructor,Constructor,"conference: JitsiConference","Initialize event wiring for the given `JitsiConference` instance [1,2]."
+2,removeXMPPListeners,Method,N/A,"Remove event listeners attached to the conference XMPP layer."
+3,setupChatRoomListeners,Method,N/A,"Attach listeners for chat-room related events (messages, private messages)."
+4,setupRTCListeners,Method,N/A,"Attach listeners for RTC-related events (track added/removed, connection state)."
+5,setupStatisticsListeners,Method,N/A,"Attach listeners for statistics and metrics reporting events."
+6,setupXMPPListeners,Method,N/A,"Attach listeners for low-level XMPP signaling events used by the conference."
+```
+
+---
+Source: workspace reference files.
+```
+```plaintext
+**Class JitsiConferenceEventManager** Setups all event listeners related to conference.
+
+The following lists constructors, properties and methods in CSV form:
+
+```csv
+Stt,Name,Type,Parameters and description,Description
+1,constructor,Constructor,"conference: JitsiConference (thể hiện hội nghị)",Thiết lập tất cả các trình lắng nghe sự kiện liên quan đến hội nghị [1, 2].
+2,removeXMPPListeners,Method,Không áp dụng,Xóa các trình lắng nghe sự kiện liên quan đến conference.xmpp [2].
+3,setupChatRoomListeners,Method,Không áp dụng,Thiết lập các trình lắng nghe sự kiện liên quan đến conference.chatRoom [2].
+4,setupRTCListeners,Method,Không áp dụng,Thiết lập các trình lắng nghe sự kiện liên quan đến conference.rtc [3].
+5,setupStatisticsListeners,Method,Không áp dụng,Thiết lập các trình lắng nghe sự kiện liên quan đến conference.statistics [3].
+6,setupXMPPListeners,Method,Không áp dụng,Thiết lập các trình lắng nghe sự kiện liên quan đến conference.xmpp [3].
+```
+
+---
+Source: workspace reference files.
+```

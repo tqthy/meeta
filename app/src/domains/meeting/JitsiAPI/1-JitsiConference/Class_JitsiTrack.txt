@@ -1,0 +1,41 @@
+```plaintext
+**Class JitsiTrack** Represents a single media track (either audio or video).
+
+The following lists constructors, properties and methods in CSV form:
+
+```csv
+Stt,Name,Type,Parameters and description,Description
+1,constructor,Constructor,"conference: JitsiConference (RTC context), stream: MediaStream (WebRTC MediaStream), track: MediaStreamTrack (WebRTC MediaStreamTrack, part of the stream), streamInactiveHandler: (this: MediaStreamTrack, ev: Event) => void (handler for onended/oninactive), trackMediaType: MediaType, videoType?: VideoType (optional)",Represents a single media track (audio or video) [1].
+2,conference,Property,N/A,The `JitsiConference` instance associated with the track (if any) [2].
+3,disposed,Property,boolean,Whether the track has been disposed [2].
+4,videoType,Property,VideoType,Video type for the track if applicable [3].
+5,attach,Method,"container: HTMLElement (a 'video' or 'audio' HTML element)",Attach the track's MediaStream to a DOM container. Adds the container to the list of containers showing the track [3].
+6,detach,Method,"container?: HTMLElement (DOM container to detach; if omitted all containers will be detached)",Detach this `JitsiTrack` from the provided HTML container(s) [3], [4].
+7,dispose,Method,N/A,Remove attached event listeners and release resources [4].
+8,getHeight,Method,N/A,Return the height of the track in a normalized orientation format [4], [5].
+9,getId,Method,N/A,Return the track's ID, or null for a fake track [5].
+10,getOriginalStream,Method,N/A,Return the underlying WebRTC `MediaStream` [5].
+11,getSourceName,Method,N/A,Return the source name for the track [5].
+12,getSsrc,Method,N/A,Return the primary SSRC associated with the track [6].
+13,getStreamId,Method,N/A,Return the underlying WebRTC MediaStream ID (if any) [6].
+14,getTrack,Method,N/A,Return the underlying WebRTC `MediaStreamTrack` [6].
+15,getTrackId,Method,N/A,Return the underlying WebRTC track ID (if any) [7].
+16,getTrackLabel,Method,N/A,Return the underlying WebRTC track label [7].
+17,getType,Method,N/A,Return the type (audio or video) of this track [7].
+18,getUsageLabel,Method,N/A,Return a meaningful usage label for this track depending on media and video type [7].
+19,getVideoType,Method,N/A,Return video type (camera or desktop) for this track [8].
+20,getWidth,Method,N/A,Return the width of the track in a normalized orientation format [8].
+21,isActive,Method,N/A,"Checks whether the MediaStream is active/not ended. Returns true if active" [8], [9].
+22,isAudioTrack,Method,N/A,Check whether this is an audio track [9].
+23,isLocal,Method,N/A,"Check whether this is a local track (true for local, false otherwise)" [9].
+24,isLocalAudioTrack,Method,N/A,"Check whether this is a local audio track (true if it represents local audio)" [9], [10].
+25,isMuted,Method,N/A,Abstract: check whether the track is muted [10].
+26,isVideoTrack,Method,N/A,Check whether this is a video track [10].
+27,setAudioLevel,Method,"audioLevel: number (0..1), tpc?: TraceablePeerConnection (peerconnection instance)",Set the audio level for the stream [10], [11].
+28,setAudioOutput,Method,"audioOutputDeviceId: string (audiooutput device ID, '' for default)",Set the audio output device for the track's DOM elements (ignored for video tracks). Emits `JitsiTrackEvents.TRACK_AUDIO_OUTPUT_CHANGED` [11], [12].
+29,setSourceName,Method,"_name: string (name to assign to the track)",Assign a source name to a track [12].
+```
+
+---
+Source: workspace reference files.
+```

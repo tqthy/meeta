@@ -1,0 +1,16 @@
+```plaintext
+**Class ReceiverAudioController** Manages audio subscriptions in a Jitsi conference. It allows subscribing to remote audio streams using different modes such as `ALL`, `EXCLUDE`, `INCLUDE`, and `NONE`.
+
+The following lists constructors, properties and methods in CSV form:
+
+```csv
+Stt,Name,Type,Parameters and description,Description
+1,constructor,Constructor,"conference: JitsiConference",Create a new `ReceiverAudioController` instance [1].
+2,audioSubscription,Accessor (Get),N/A,Get the current audio subscription options (`ReceiverAudioSubscription`) [1].
+3,muteRemoteAudio,Method,"muted: boolean (indicates whether remote audio should be muted)",Mute or unmute remote audio streams based on the provided parameter [1].
+4,setAudioSubscriptionMode,Method,"message: IReceiverAudioSubscriptionMessage (audio subscription message containing mode and optional source list)",Set audio subscription options for the conference [2].
+```
+
+---
+Source: workspace reference files.
+```

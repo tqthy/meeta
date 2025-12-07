@@ -1,0 +1,13 @@
+```plaintext
+**Class LiteModeContext** Implements a discard-all insertable stream. Use this to reduce decoder CPU load (testing/debugging).
+
+The following lists constructors, properties and methods in CSV form:
+
+```csv
+Stt,Name,Type,Parameters and description,Description
+1,constructor,Constructor,"conference: JitsiConference (the conference instance where lite mode is enabled)",Create a new `LiteModeContext` instance [1].
+```
+
+---
+Source: workspace reference files.
+```

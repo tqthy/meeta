@@ -1,0 +1,22 @@
+```plaintext
+**Class RoomMetadata** Helper class for handling room metadata (breakout rooms / room-level metadata management).
+
+The following lists constructors, properties and methods in CSV form:
+
+```csv
+Stt,Name,Type,Parameters and description,Description
+1,constructor,Constructor,"room: any (the room instance)",Create a RoomMetadata helper for the given room.
+2,_metadata,Property,N/A,Internal metadata storage.
+3,room,Property,N/A,The room instance associated with this helper.
+4,_handleMessages,Method,"payload: any (arbitrary data)",Handle an incoming message that contains metadata updates.
+5,_sendMessage,Method,"message: any (command to send)",Helper to send a breakout-rooms message to the XMPP component.
+6,dispose,Method,N/A,Stop listening to events and clean up.
+7,getComponentAddress,Method,N/A,Return the XMPP component address used for Breakout Rooms.
+8,getMetadata,Method,N/A,Return the stored metadata (full object).
+9,isSupported,Method,N/A,Return whether Breakout Rooms support is enabled on the backend.
+10,setMetadata,Method,"key: any (key under which to store metadata), data: any (value to store)",Set metadata for the given key.
+```
+
+---
+Source: workspace reference files.
+```

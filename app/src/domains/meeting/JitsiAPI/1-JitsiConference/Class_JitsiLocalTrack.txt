@@ -1,0 +1,63 @@
+```plaintext
+**Class JitsiLocalTrack** represents a single local media track (either audio or video). One JitsiLocalTrack corresponds to one WebRTC MediaStreamTrack and provides helpers specific to local publishing (attach/detach, mute/unmute, constraints, etc.).
+
+The following lists constructors, properties and methods in CSV form:
+
+```csv
+Stt,Name,Type,Parameters and description,Description
+1,constructor,Constructor,"trackInfo: ITrackInfo (contains constraints, rtcId, stream, track, mediaType, videoType, effects, deviceId, facingMode, sourceId and sourceType)",Creates a new JitsiLocalTrack instance [2, 3].
+2,conference,Property,N/A,The `JitsiConference` instance inherited from `JitsiTrack` (if attached) [3].
+3,deviceId,Property,N/A,Local device ID associated with this track [3, 4].
+4,disposed,Property,N/A,Whether the track has been disposed [4].
+5,maxEnabledResolution,Property,N/A,Maximum enabled resolution (optional) [4].
+6,metadata,Property,N/A,Track metadata (`ITrackMetadata`) [4].
+7,resolution,Property,N/A,Configured resolution (optional) [4].
+8,rtcId,Property,N/A,ID assigned by the RTC module [5].
+9,sourceId,Property,N/A,Source ID for desktop-share tracks (optional) [3, 5].
+10,sourceType,Property,N/A,Source type the track originates from (optional) [3, 5].
+11,videoType,Property,N/A,Video type (inherited from `JitsiTrack`) [5].
+12,applyConstraints,Method,"constraints: IAudioConstraints (media constraints to apply)",Applies media constraints to the underlying MediaStreamTrack asynchronously [5, 6].
+13,attach,Method,"container: HTMLElement (a 'video' or 'audio' HTML element)",Attach this track's MediaStream to a DOM container [6].
+14,detach,Method,"container?: HTMLElement (DOM container to detach from; if omitted all containers will be detached)",Detach this `JitsiTrack` from the provided container(s) [7].
+15,dispose,Method,N/A,Stop sending the media and remove it from the DOM. Only applicable for local tracks [8].
+16,getCameraFacingMode,Method,N/A,Return the camera facing mode for a camera video track or `undefined` otherwise [8].
+17,getCaptureResolution,Method,N/A,Return the capture resolution for the video track [8, 9].
+18,getDeviceId,Method,N/A,Return the device ID associated with the track [9].
+19,getDuration,Method,N/A,Get the duration of the track in seconds [9].
+20,getHeight,Method,N/A,Return the height of the track in a normalized orientation format [9].
+21,getId,Method,N/A,Return the track's ID (or `null` for a fake track) [10].
+22,getOriginalStream,Method,N/A,Return the underlying WebRTC `MediaStream` instance [10].
+23,getParticipantId,Method,N/A,"Return the participant ID owning the track (Corresponds to colibri endpoint ID / MUC nickname)" [11].
+24,getSourceName,Method,N/A,Return the source name associated with the jitsi track [11].
+25,getSsrc,Method,N/A,Return the primary SSRC associated with the track [11].
+26,getStreamId,Method,N/A,Return the underlying WebRTC MediaStream ID (if any) [12].
+27,getTrack,Method,N/A,Return the underlying WebRTC `MediaStreamTrack` [12].
+28,getTrackId,Method,N/A,Return the underlying WebRTC track ID (if any) [12].
+29,getTrackLabel,Method,N/A,Return the underlying WebRTC track label [13].
+30,getType,Method,N/A,Return the type (audio or video) of this track [13].
+31,getUsageLabel,Method,N/A,Return a meaningful usage label for this track depending on media and video type [13, 14].
+32,getVideoType,Method,N/A,Return video type (camera or desktop) for this track [14].
+33,getWidth,Method,N/A,Return the width of the track in a normalized orientation format [14].
+34,isActive,Method,N/A,Check whether the MediaStream is active/not ended [14].
+35,isAudioTrack,Method,N/A,Check whether this is an audio track [15].
+36,isEnded,Method,N/A,Return whether the underlying MediaStreamTrack is in the 'ended' state [15].
+37,isLocal,Method,N/A,Always returns `true` for a local track [15, 16].
+38,isLocalAudioTrack,Method,N/A,Check whether this is a local audio track [16].
+39,isMuted,Method,N/A,Return `true` if the stream is muted, otherwise `false` [16].
+40,isReceivingData,Method,N/A,Check whether the attached MediaStream is receiving data from the source [17].
+41,isVideoTrack,Method,N/A,Check whether this is a video track [18].
+42,mute,Method,N/A,Mute this track asynchronously [18].
+43,onByteSentStatsReceived,Method,"tpc: TraceablePeerConnection (peerconnection reporting stats), bytesSent: number (new value)",Handle bytes-sent stats (used for audio troubleshooting) [18, 19].
+44,setAudioLevel,Method,"audioLevel: number (0..1), Optional tpc: TraceablePeerConnection (peerconnection instance which is audio source)",Set the audio level for the stream [19].
+45,setAudioOutput,Method,"audioOutputDeviceId: string (audiooutput device ID, '' for default)",Set the audio output device for the track's DOM elements (ignored for video tracks) [20].
+46,setConference,Method,"conference: JitsiConference (JitsiConference instance)",Associate a `JitsiConference` instance with the track [21].
+47,setEffect,Method,"Optional effect: IStreamEffect (effect instance to apply)",Set an effect and switch between the modified stream and the original stream [21].
+48,setSsrc,Method,"ssrc: number (SSRC)",Set the primary SSRC for the track [22].
+49,stopStream,Method,N/A,Stop the underlying MediaStream [22].
+50,toString,Method,N/A,Create a textual representation of this local track instance [22].
+51,unmute,Method,N/A,Unmute this track asynchronously [23].
+```
+
+---
+Source: workspace reference files.
+```

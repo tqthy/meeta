@@ -1,0 +1,15 @@
+```plaintext
+**Class EventEmitter** Lightweight EventEmitter wrapper used by the Jitsi adapter.
+
+The following lists constructors, properties and methods in CSV form:
+
+```csv
+Stt,Name,Type,Parameters and description,Description
+1,constructor,Constructor,N/A,Create a new `EventEmitter` instance [1].
+2,addEventListener,Property,"eventName: string | symbol (event name), listener: (...args: any[]) => void (listener function)",Alias for `emitter.on(eventName, listener)`. Add an event listener [2].
+3,removeEventListener,Property,"eventName: string | symbol (event name), listener: (...args: any[]) => void (listener function)",Remove the specified listener from the listener array for the event named `eventName` [3].
+```
+
+---
+Source: workspace reference files.
+```

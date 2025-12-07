@@ -1,0 +1,75 @@
+```plaintext
+**Class CodecSelection** Handles codec selection for the conference based on configuration. The preferred codec is chosen from browser-supported codecs and published in presence so other endpoints can select a compatible codec at join time and during transitions between P2P and JVB.
+
+The following lists constructors, properties and methods in CSV form:
+
+```csv
+Stt,Name,Type,Parameters and description,Description
+1,constructor,Constructor,"conference: any, options: {} (optional, default {})",Create a new `CodecSelection` instance for the given conference [1].
+2,_channel,Property,N/A,BridgeChannel instance used by codec selection [1].
+3,_channelOpenListener,Property,() => void,Listener for bridge channel open events [1].
+4,_forwardedSourcesChangeListener,Property,any,Listener for forwarded-sources changes [2].
+5,_receiverVideoConstraints,Property,any,Receiver video constraints state [2].
+6,conference,Property,any,Conference instance [2].
+7,localTracks,Property,any[],Local tracks known to the codec selection [2].
+8,options,Property,{},Options passed to codec selection [2].
+9,peerConnections,Property,Map<number, TraceablePeerConnection>,Map of active `TraceablePeerConnection` instances [2].
+10,options,Static Property,{},Static `options` property [3].
+11,_removePeerConnection,Method,"traceablePeerConnection: TraceablePeerConnection",Remove a peer connection mapping. Returns true on success or false if no mapping existed [3].
+12,addCancellableListener,Method,"eventName: string, listener: EventListener",Add a cancellable listener. Returns an unsubscribe function [4].
+13,addEventListener,Method,"eventId: string, handler: EventListener",Alias for the `on` method [4].
+14,addListener,Method,"eventName: string, listener: EventListener",Add a new event listener [5].
+15,addLocalTrack,Method,"track: any",Add a local track [5, 6].
+16,closeBridgeChannel,Method,N/A,Close the currently open bridge channel [6].
+17,createPeerConnection,Method,"signaling: SignalingLayer, pcConfig: any, isP2P: boolean, options: {...}",Create a new `TraceablePeerConnection` [6-9].
+18,destroy,Method,N/A,Remove all listeners and stored state [9].
+19,emit,Method,"event: string, ...args: any[]",Emit an event [9, 10].
+20,getForwardedSources,Method,N/A,Return the list of forwarded sources [10].
+21,getLocalAudioTrack,Method,N/A,Return the local audio track [10].
+22,getLocalEndpointId,Method,N/A,Return the endpoint ID for the local user [11].
+23,getLocalTracks,Method,"mediaType?: MediaType (optional: audio or video)",Return local tracks filtered by media type or all tracks if none specified [11].
+24,getLocalVideoTrack,Method,N/A,Return the local video track [11].
+25,getLocalVideoTracks,Method,N/A,Return all local video tracks [12].
+26,getRemoteTracks,Method,"mediaType?: MediaType (optional: audio or video)",Return all known remote tracks [12].
+27,initializeBridgeChannel,Method,"peerconnection?: RTCPeerConnection, wsUrl?: string",Initialize the bridge channel [13].
+28,isInForwardedSources,Method,"sourceName: string",Indicate whether a source name is included in forwarded sources [13, 14].
+29,listenerCount,Method,"eventName?: string",Return number of listeners for the specified event [14, 15].
+30,off,Method,"eventId: string, handler?: EventListener",Remove an event listener [15].
+31,on,Method,"eventId: string, handler: EventListener",Attach a handler for events (e.g. 'participant joined') [15, 16].
+32,onCallEnded,Method,N/A,"Should be called when the current media session ends and after the PeerConnection has closed" [16].
+33,once,Method,"eventId: string, handler: EventListener",Add a one-time listener for an event [16, 17].
+34,removeAllListeners,Method,N/A,Remove all listeners [17].
+35,removeEventListener,Method,"eventId: string, handler?: EventListener",Alias for the `off` method [17, 18].
+36,removeListener,Method,"eventName: string, listener: EventListener",Remove a listener [18, 19].
+37,removeLocalTrack,Method,"track: any",Remove a local track [19].
+38,sendChannelMessage,Method,"to: string (recipient endpoint ID, '' for all), payload: any",Send a message via the bridge channel [19, 20].
+39,sendEndpointStatsMessage,Method,"payload: any",Send local stats over the bridge channel [20].
+40,sendReceiverAudioSubscriptionMessage,Method,"message: any",Send a receiver-audio-subscription message [20, 21].
+41,sendSourceVideoType,Method,"sourceName: SourceName, videoType: BridgeVideoType",Send the track's video type to the JVB [21].
+42,setAudioLevel,Method,"tpc: TraceablePeerConnection, ssrc: number, audioLevel: number, isLocal: boolean",Set the audio level [21, 22].
+43,setAudioMute,Method,N/A,Set mute on all attached local audio streams [22].
+44,setDesktopMute,Method,N/A,Set mute on all attached local desktop-sharing video streams [22].
+45,setDesktopSharingFrameRate,Method,"maxFps: number",Set the capture frame rate for desktop tracks [23].
+46,setLastN,Method,"value: number (new lastN value, -1 for no limit)",Choose a new `lastN` value [23, 24].
+47,setReceiverVideoConstraints,Method,"constraints: any",Set receiver video constraints [24].
+48,setVideoMute,Method,N/A,Set mute on all attached local video streams [24, 25].
+49,addListener,Static Method,"eventType: any, listener: any",Add a listener [25].
+50,attachMediaStream,Static Method,"elSelector: any, stream: any",Attach a MediaStream [25].
+51,createLocalTracks,Static Method,"tracksInfo: any[]",Convert WebRTC MediaStreams into `JitsiLocalTrack` instances [25, 26].
+52,enumerateDevices,Static Method,"callback: Function (receives an array of devices)",Allow obtaining a list of available cameras/microphones [26].
+53,getAudioOutputDevice,Static Method,N/A,"Return the ID of the audio output device currently used; '' for default" [26, 27].
+54,getCurrentlyAvailableMediaDevices,Static Method,N/A,Return the list of available media devices if already fetched [27].
+55,getEventDataForActiveDevice,Static Method,"device: any",Return event data for a device for stats reporting [27, 28].
+56,init,Static Method,"options?: {} (optional, default {})",Initialize [28].
+57,isDesktopSharingEnabled,Static Method,N/A,Return whether desktop sharing is enabled [28].
+58,isDeviceChangeAvailable,Static Method,"deviceType?: string (optional: 'input' or 'output')",Return true if device change is supported [28, 29].
+59,isWebRtcSupported,Static Method,N/A,"Return whether the current environment supports WebRTC" [29, 30].
+60,obtainAudioAndVideoPermissions,Static Method,"options?: {cameraDeviceId?: string, devices?: any[], micDeviceId?: string, resolution?: string}",Create local MediaStreams [30, 31].
+61,removeListener,Static Method,"eventType: any, listener: any",Remove a listener [31].
+62,setAudioOutputDevice,Static Method,"deviceId: string (audiooutput device ID)",Set the current audio output device [31, 32].
+63,stopMediaStream,Static Method,"mediaStream: MediaStream (MediaStream to stop)",Stop a media stream [32].
+```
+
+---
+Source: workspace reference files.
+```

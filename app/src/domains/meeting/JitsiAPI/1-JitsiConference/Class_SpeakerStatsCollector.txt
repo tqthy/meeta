@@ -1,0 +1,16 @@
+```plaintext
+**Class SpeakerStatsCollector** Collection responsible for tracking `SpeakerStats` models. Attaches listeners to a `JitsiConference` to automatically update stats in response to conference events.
+
+The following lists constructors, properties and methods in CSV form:
+
+```csv
+Stt,Name,Type,Parameters and description,Description
+1,constructor,Constructor,"conference: JitsiConference (conference to monitor)",Create a new `SpeakerStatsCollector` instance [1, 2].
+2,conference,Property,JitsiConference,Reference to the `JitsiConference` instance being monitored [2].
+3,stats,Property,ISpeakerStatsState (speaker stats state),Property containing the collected speaker stats [2].
+4,getStats,Method,() : { [userId: string]: SpeakerStats },Return a copy of the tracked `SpeakerStats` models. Keys are user IDs and values are the corresponding `SpeakerStats` instances [2, 3].
+```
+
+---
+Source: workspace reference files.
+```

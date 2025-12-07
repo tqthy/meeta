@@ -1,0 +1,43 @@
+```plaintext
+**Class VADAudioAnalyser** Connects a `TrackVADEmitter` to a conference local audio track and manages services that consume VAD data (e.g., speech/noise detection).
+
+```csv
+Stt,Name,Type,Parameters and description,Description
+1,constructor,Constructor,"conference: JitsiConference, createVADProcessor: () => IVADProcessor","Create a new `VADAudioAnalyser`. The VAD processor must implement `getSampleLength()`, `getRequiredPCMFrequency()` and `calculateAudioFrameVAD(pcmSample)` [2]."
+2,addEventListener,Property,"eventName: string | symbol, listener: (...args: any[]) => void","Alias for emitter.on(eventName, listener). Add an event listener (inherited from EventEmitter)."
+3,removeEventListener,Property,"eventName: string | symbol, listener: (...args: any[]) => void","Remove the specified listener from the event's listener array (inherited from EventEmitter)."
+4,_changeDetectorsMuteState,Method,"isMuted: boolean","Change the `isMuted` state for all attached detection services."
+5,_processVADScore,Method,"vadScore: IVADScore","Listen to `TrackVADEmitter` events and forward them to attached services as needed."
+6,_startVADEmitter,Method,N/A,"Start the `TrackVADEmitter` and attach event listeners."
+7,_stopVADEmitter,Method,N/A,"Stop the `TrackVADEmitter` and remove event listeners."
+8,_trackAdded,Method,"track: JitsiLocalTrack","Notify detectors that a track was added to the conference; only consider local audio tracks."
+9,_trackMuteChanged,Method,"track: JitsiLocalTrack","Notify detectors that a track's mute state changed; only consider local audio tracks."
+10,_trackRemoved,Method,"track: JitsiLocalTrack","Notify detectors that a linked track was removed and perform cleanup; only consider local audio tracks."
+11,addVADDetectionService,Method,"vadService: IVADDetectionService","Attach a VAD detection service to the analyser and manage its lifecycle and state changes."
+```
+
+---
+Source: workspace reference files.
+```
+```plaintext
+**Class VADAudioAnalyser** Connects a TrackVADEmitter to the target conference local audio track and manages various services that use the data to produce audio analytics (VADTalkMutedDetection and VADNoiseDetection).
+
+
+```csv
+Stt,Name,Type,Parameters and description,Description
+1,constructor,Constructor,"conference: JitsiConference (thể hiện JitsiConference đã tạo ra bộ phân tích), createVADProcessor: () => IVADProcessor (Hàm tạo bộ xử lý phát hiện hoạt động giọng nói (VAD))",Tạo thể hiện VADAudioAnalyser mới. Bộ xử lý VAD cần triển khai các hàm getSampleLength(), getRequiredPCMFrequency() và calculateAudioFrameVAD(pcmSample) [2].
+2,addEventListener,Property,"eventName: string | symbol (Tên sự kiện), listener: (...args: any[]) => void (Hàm lắng nghe)",Bí danh cho emitter.on(eventName, listener). Thêm trình lắng nghe sự kiện (Kế thừa từ EventEmitter) [3].
+3,removeEventListener,Property,"eventName: string | symbol (Tên sự kiện), listener: (...args: any[]) => void (Hàm lắng nghe)",Loại bỏ listener được chỉ định khỏi mảng listener cho sự kiện có tên eventName (Kế thừa từ EventEmitter) [4].
+4,_changeDetectorsMuteState,Method,"isMuted: boolean",Thay đổi trạng thái isMuted của tất cả các dịch vụ phát hiện được đính kèm [5].
+5,_processVADScore,Method,"vadScore: IVADScore (Điểm VAD được phát ra bởi TrackVADEmitter, chứa timestamp, score, deviceId)",Lắng nghe các sự kiện TrackVADEmitter và chuyển hướng chúng đến các dịch vụ được đính kèm khi cần [5].
+6,_startVADEmitter,Method,Không áp dụng,Bắt đầu TrackVADEmitter và đính kèm trình lắng nghe sự kiện [6].
+7,_stopVADEmitter,Method,Không áp dụng,Dừng TrackVADEmitter và gỡ bỏ trình lắng nghe sự kiện [6].
+8,_trackAdded,Method,"track: JitsiLocalTrack (track được thêm)",Thông báo cho bộ phát hiện rằng một track đã được thêm vào JitsiConference. Chỉ tính đến các track âm thanh cục bộ [7].
+9,_trackMuteChanged,Method,"track: JitsiLocalTrack (track có trạng thái tắt tiếng đã thay đổi)",Thông báo cho bộ phát hiện rằng trạng thái tắt tiếng của một track JitsiConference đã thay đổi. Chỉ tính đến các track âm thanh cục bộ [7].
+10,_trackRemoved,Method,"track: JitsiLocalTrack (track bị loại bỏ)",Thông báo cho bộ phát hiện rằng một track liên kết với JitsiConference đã bị loại bỏ. Chỉ tính đến các track âm thanh cục bộ và dọn dẹp tài nguyên [8].
+11,addVADDetectionService,Method,"vadService: IVADDetectionService",Đính kèm một dịch vụ phát hiện VAD vào bộ phân tích và xử lý các thay đổi trạng thái của nó [9].
+```
+
+---
+Source: workspace reference files.
+```
