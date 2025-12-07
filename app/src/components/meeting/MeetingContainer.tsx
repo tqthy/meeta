@@ -29,6 +29,23 @@ export function MeetingContainer({
     isLoading = false,
     dominantSpeakerId,
 }: MeetingContainerProps) {
+    // Log participant rendering info
+    console.log('[MeetingContainer] 🎭 Rendering with participants:', {
+        count: participants.length,
+        layout: currentLayout,
+        participants: participants.map((p) => ({
+            id: p.id,
+            name: p.displayName,
+            isLocal: p.isLocal,
+            hasVideo: !!p.videoTrack,
+            hasAudio: !!p.audioTrack,
+            isVideoMuted: p.isVideoMuted,
+            isAudioMuted: p.isAudioMuted,
+            videoTrackId: p.videoTrack?.getId?.(),
+            audioTrackId: p.audioTrack?.getId?.(),
+        })),
+    })
+
     if (isLoading) {
         return (
             <div className="w-full h-full flex items-center justify-center bg-gray-900">

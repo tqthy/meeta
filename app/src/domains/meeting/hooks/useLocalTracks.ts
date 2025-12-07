@@ -50,6 +50,10 @@ export function useLocalTracks(options: UseLocalTracksOptions = {}) {
     const audioTrackRef = useRef<any>(null)
     const videoTrackRef = useRef<any>(null)
 
+    // Track whether tracks are successfully added to conference
+    const audioTrackInConference = useRef<boolean>(false)
+    const videoTrackInConference = useRef<boolean>(false)
+
     // Local state for immediate UI feedback
     const [isAudioEnabled, setIsAudioEnabled] = useState(false)
     const [isVideoEnabled, setIsVideoEnabled] = useState(false)
@@ -75,7 +79,15 @@ export function useLocalTracks(options: UseLocalTracksOptions = {}) {
      */
     const enableAudio = useCallback(
         async (deviceId?: string) => {
-            if (audioTrackRef.current) return // Already have audio
+            // Check if we already have a valid audio track
+            if (audioTrackRef.current) {
+                const track = audioTrackRef.current
+                // Verify track is not disposed
+                if (track && typeof track.isEnded === 'function' && !track.isEnded()) {
+                    console.log('[useLocalTracks] Audio track already exists, skipping creation')
+                    return
+                }
+            }
 
             dispatch(setCreatingAudioTrack(true))
 
@@ -93,7 +105,14 @@ export function useLocalTracks(options: UseLocalTracksOptions = {}) {
 
                 // Add to conference if joined
                 if (meetingState.conferenceStatus === 'joined') {
-                    await meetingService.addTrack(track)
+                    try {
+                        await meetingService.addTrack(track)
+                        audioTrackInConference.current = true
+                    } catch (error) {
+                        console.error('[useLocalTracks] Failed to add audio track to conference:', error)
+                        audioTrackInConference.current = false
+                        // Track is still available locally even if not in conference
+                    }
                 }
 
                 // Update local participant
@@ -126,9 +145,16 @@ export function useLocalTracks(options: UseLocalTracksOptions = {}) {
         try {
             const track = audioTrackRef.current
 
-            // Remove from conference first
-            if (meetingState.conferenceStatus === 'joined') {
-                await meetingService.removeTrack(track)
+            // Remove from conference first (only if it was successfully added)
+            if (meetingState.conferenceStatus === 'joined' && audioTrackInConference.current) {
+                try {
+                    await meetingService.removeTrack(track)
+                    audioTrackInConference.current = false
+                } catch (error) {
+                    console.error('[useLocalTracks] Failed to remove audio track from conference:', error)
+                    audioTrackInConference.current = false
+                    // Continue with local cleanup even if conference removal fails
+                }
             }
 
             // Release the track
@@ -205,7 +231,15 @@ export function useLocalTracks(options: UseLocalTracksOptions = {}) {
      */
     const enableVideo = useCallback(
         async (deviceId?: string) => {
-            if (videoTrackRef.current) return // Already have video
+            // Check if we already have a valid video track
+            if (videoTrackRef.current) {
+                const track = videoTrackRef.current
+                // Verify track is not disposed
+                if (track && typeof track.isEnded === 'function' && !track.isEnded()) {
+                    console.log('[useLocalTracks] Video track already exists, skipping creation')
+                    return
+                }
+            }
 
             dispatch(setCreatingVideoTrack(true))
 
@@ -223,7 +257,14 @@ export function useLocalTracks(options: UseLocalTracksOptions = {}) {
 
                 // Add to conference if joined
                 if (meetingState.conferenceStatus === 'joined') {
-                    await meetingService.addTrack(track)
+                    try {
+                        await meetingService.addTrack(track)
+                        videoTrackInConference.current = true
+                    } catch (error) {
+                        console.error('[useLocalTracks] Failed to add video track to conference:', error)
+                        videoTrackInConference.current = false
+                        // Track is still available locally even if not in conference
+                    }
                 }
 
                 // Update local participant
@@ -256,9 +297,16 @@ export function useLocalTracks(options: UseLocalTracksOptions = {}) {
         try {
             const track = videoTrackRef.current
 
-            // Remove from conference first
-            if (meetingState.conferenceStatus === 'joined') {
-                await meetingService.removeTrack(track)
+            // Remove from conference first (only if it was successfully added)
+            if (meetingState.conferenceStatus === 'joined' && videoTrackInConference.current) {
+                try {
+                    await meetingService.removeTrack(track)
+                    videoTrackInConference.current = false
+                } catch (error) {
+                    console.error('[useLocalTracks] Failed to remove video track from conference:', error)
+                    videoTrackInConference.current = false
+                    // Continue with local cleanup even if conference removal fails
+                }
             }
 
             // Release the track

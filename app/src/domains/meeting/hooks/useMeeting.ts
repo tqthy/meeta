@@ -12,7 +12,7 @@
 
 import { useCallback, useEffect, useRef } from 'react'
 import { useAppDispatch, useAppSelector } from '@/store'
-import { meetingService } from '../services/meeting-runtime/meetingService'
+import { integratedMeetingService } from '../services/meeting-runtime/meetingServiceIntegration'
 import { trackService } from '../services/meeting-runtime/trackService'
 import { deviceService } from '../services/meeting-runtime/deviceService'
 import {
@@ -45,11 +45,12 @@ export function useMeeting() {
 
     // Setup event handlers on mount
     useEffect(() => {
-        meetingService.setEventHandlers({
+        integratedMeetingService.setEventHandlers({
             onConnectionEstablished: () => {
                 dispatch(setConnectionStatus('connected'))
             },
-            onConnectionFailed: (error) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            onConnectionFailed: (error: any) => {
                 dispatch(setConnectionStatus('failed'))
                 dispatch(
                     setError({
@@ -66,13 +67,14 @@ export function useMeeting() {
                 dispatch(setConferenceStatus('joined'))
 
                 // Add local participant
-                const localParticipant = meetingService.getLocalParticipant()
+                const localParticipant = integratedMeetingService.getLocalParticipant()
                 if (localParticipant) {
                     dispatch(setLocalParticipantId(localParticipant.id))
                     dispatch(addParticipant(localParticipant))
                 }
             },
-            onConferenceFailed: (error) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            onConferenceFailed: (error: any) => {
                 dispatch(setConferenceStatus('failed'))
                 dispatch(
                     setError({
@@ -86,54 +88,106 @@ export function useMeeting() {
                 dispatch(setConferenceStatus('left'))
             },
             onUserJoined: (participant: Participant) => {
+                console.log('[useMeeting] 👤 User joined:', {
+                    id: participant.id,
+                    displayName: participant.displayName,
+                    isAudioMuted: participant.isAudioMuted,
+                    isVideoMuted: participant.isVideoMuted,
+                    role: participant.role
+                })
                 dispatch(addParticipant(participant))
             },
             onUserLeft: (participantId: string) => {
+                console.log('[useMeeting] 👋 User left:', { participantId })
                 dispatch(removeParticipant(participantId))
                 dispatch(removeRemoteTracksByParticipant(participantId))
             },
-            onTrackAdded: (track) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            onTrackAdded: (track: any) => {
                 // Only handle remote tracks here
-                if (trackService.isLocalTrack(track)) return
+                if (trackService.isLocalTrack(track)) {
+                    console.log('[useMeeting] Ignoring local track in onTrackAdded')
+                    return
+                }
 
                 const trackInfo = trackService.extractRemoteTrackInfo(track)
+                const participantId = trackService.getParticipantId(track)
+                const trackType = trackService.getTrackType(track)
+                const isMuted = trackService.isTrackMuted(track)
+
+                console.log('[useMeeting] 🎬 Remote track added:', {
+                    trackId: trackInfo.id,
+                    participantId,
+                    trackType,
+                    isMuted,
+                    isVideoType: track.isVideoType?.(),
+                    isAudioType: track.isAudioType?.(),
+                    isEnded: track.isEnded?.(),
+                    trackInfo
+                })
+
                 trackService.storeRemoteTrack(trackInfo.id, track)
                 dispatch(addRemoteTrack(trackInfo))
 
                 // Update participant mute state
-                const participantId = trackService.getParticipantId(track)
-                const trackType = trackService.getTrackType(track)
                 if (participantId && trackType) {
+                    const muteUpdate = trackType === 'audio'
+                        ? { isAudioMuted: isMuted }
+                        : { isVideoMuted: isMuted }
+
+                    console.log('[useMeeting] Updating participant mute state:', {
+                        participantId,
+                        trackType,
+                        updates: muteUpdate
+                    })
+
                     dispatch(
                         updateParticipant({
                             id: participantId,
-                            updates:
-                                trackType === 'audio'
-                                    ? {
-                                        isAudioMuted:
-                                            trackService.isTrackMuted(track),
-                                    }
-                                    : {
-                                        isVideoMuted:
-                                            trackService.isTrackMuted(track),
-                                    },
+                            updates: muteUpdate,
                         })
                     )
                 }
             },
-            onTrackRemoved: (track) => {
-                if (trackService.isLocalTrack(track)) return
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            onTrackRemoved: (track: any) => {
+                if (trackService.isLocalTrack(track)) {
+                    console.log('[useMeeting] Ignoring local track in onTrackRemoved')
+                    return
+                }
 
-                const trackId =
-                    track.getId?.() || `remote-${track.getType?.()}`
+                const trackId = track.getId?.() || `remote-${track.getType?.()}`
+                const participantId = trackService.getParticipantId(track)
+                const trackType = trackService.getTrackType(track)
+
+                console.log('[useMeeting] 🗑️ Remote track removed:', {
+                    trackId,
+                    participantId,
+                    trackType
+                })
+
                 trackService.removeRemoteTrack(trackId)
                 dispatch(removeRemoteTrack(trackId))
             },
-            onTrackMuteChanged: (track) => {
-                if (trackService.isLocalTrack(track)) return
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            onTrackMuteChanged: (track: any) => {
+                if (trackService.isLocalTrack(track)) {
+                    console.log('[useMeeting] Ignoring local track in onTrackMuteChanged')
+                    return
+                }
 
                 const trackId = track.getId?.()
                 const isMuted = trackService.isTrackMuted(track)
+                const participantId = trackService.getParticipantId(track)
+                const trackType = trackService.getTrackType(track)
+
+                console.log('[useMeeting] 🔇 Remote track mute changed:', {
+                    trackId,
+                    participantId,
+                    trackType,
+                    isMuted,
+                    wasAlreadyMuted: track.isMuted?.() // Check Jitsi's internal state
+                })
 
                 if (trackId) {
                     dispatch(
@@ -145,16 +199,20 @@ export function useMeeting() {
                 }
 
                 // Update participant state
-                const participantId = trackService.getParticipantId(track)
-                const trackType = trackService.getTrackType(track)
                 if (participantId && trackType) {
+                    const muteUpdate = trackType === 'audio'
+                        ? { isAudioMuted: isMuted }
+                        : { isVideoMuted: isMuted }
+
+                    console.log('[useMeeting] Updating participant from mute change:', {
+                        participantId,
+                        updates: muteUpdate
+                    })
+
                     dispatch(
                         updateParticipant({
                             id: participantId,
-                            updates:
-                                trackType === 'audio'
-                                    ? { isAudioMuted: isMuted }
-                                    : { isVideoMuted: isMuted },
+                            updates: muteUpdate,
                         })
                     )
                 }
@@ -173,7 +231,7 @@ export function useMeeting() {
         })
 
         return () => {
-            meetingService.clearEventHandlers()
+            integratedMeetingService.clearEventHandlers()
         }
     }, [dispatch])
 
@@ -181,7 +239,14 @@ export function useMeeting() {
      * Joins a meeting room
      */
     const joinMeeting = useCallback(
-        async (roomName: string, displayName: string) => {
+        async (
+            roomName: string,
+            displayName: string,
+            meetingId: string,
+            userId?: string,
+            title?: string,
+            description?: string
+        ) => {
             if (isJoiningRef.current) return
             isJoiningRef.current = true
 
@@ -195,12 +260,18 @@ export function useMeeting() {
                     displayName,
                 }
 
-                // Connect to server
-                await meetingService.connect(config)
+                // Connect to server with event emission
+                await integratedMeetingService.connect(
+                    config,
+                    meetingId,
+                    userId || 'anonymous',
+                    title,
+                    description
+                )
 
                 // Join the conference
                 dispatch(setConferenceStatus('joining'))
-                await meetingService.joinConference(roomName, displayName)
+                await integratedMeetingService.joinConference(roomName, displayName)
             } catch (error) {
                 console.error('Failed to join meeting:', error)
                 dispatch(setConnectionStatus('failed'))
@@ -235,7 +306,7 @@ export function useMeeting() {
             trackService.clearRemoteTracks()
 
             // Disconnect from meeting
-            await meetingService.disconnect()
+            await integratedMeetingService.disconnect()
 
             // Reset stores
             dispatch(resetMeetingState())
@@ -254,7 +325,7 @@ export function useMeeting() {
      */
     const addLocalTrack = useCallback(
         async (track: unknown) => {
-            await meetingService.addTrack(track)
+            await integratedMeetingService.addTrack(track)
         },
         []
     )
@@ -264,7 +335,7 @@ export function useMeeting() {
      */
     const removeLocalTrack = useCallback(
         async (track: unknown) => {
-            await meetingService.removeTrack(track)
+            await integratedMeetingService.removeTrack(track)
         },
         []
     )

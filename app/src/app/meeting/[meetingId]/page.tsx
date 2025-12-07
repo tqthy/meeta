@@ -17,7 +17,7 @@ import {
     useRemoteTracks,
     useEventPersistence,
 } from '@/domains/meeting/hooks'
-import { trackService, meetingEventEmitter } from '@/domains/meeting/services'
+import { trackService } from '@/domains/meeting/services'
 import { useSession } from '@/lib/auth-client'
 
 type LayoutType = 'auto' | 'grid' | 'sidebar' | 'spotlight'
@@ -98,37 +98,27 @@ export default function MeetingPage() {
             !meetingIsConnected &&
             !meetingIsConnecting
         ) {
-            joinMeeting(meetingId, userName)
+            joinMeeting(
+                meetingId,
+                userName,
+                meetingId,
+                userId,
+                undefined, // title - can be set later
+                undefined // description - can be set later
+            )
         }
     }, [
         hasInitialized,
         meetingId,
         userName,
+        userId,
         meetingIsConnected,
         meetingIsConnecting,
         joinMeeting,
     ])
 
-    // Emit meeting.started event when successfully joined (only if authenticated)
-    useEffect(() => {
-        if (meetingIsJoined && meetingId && userName && userId) {
-            meetingEventEmitter.emitMeetingStarted({
-                meetingId,
-                roomName: meetingId,
-                hostUserId: userId,
-                startedAt: new Date().toISOString(),
-            })
-
-            meetingEventEmitter.emitParticipantJoined({
-                participantId: `${meetingId}-${userId}`,
-                userId: userId,
-                meetingId,
-                displayName: userName,
-                role: 'HOST',
-                joinedAt: new Date().toISOString(),
-            })
-        }
-    }, [meetingIsJoined, meetingId, userName, userId])
+    // Note: Event emission now handled by integratedMeetingService
+    // No need to manually emit meeting.started and participant.joined events
 
     // Enable tracks after joining based on initial settings
     useEffect(() => {
@@ -140,7 +130,14 @@ export default function MeetingPage() {
                 localTracks.enableVideo()
             }
         }
-    }, [meetingIsJoined, initialMicEnabled, initialCameraEnabled, localTracks])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+        meetingIsJoined,
+        initialMicEnabled,
+        initialCameraEnabled,
+        localTracks.isAudioEnabled,
+        localTracks.isVideoEnabled,
+    ])
 
     // Media control handlers
     const handleToggleMic = useCallback(async () => {
@@ -149,7 +146,12 @@ export default function MeetingPage() {
         } else {
             await localTracks.enableAudio()
         }
-    }, [localTracks])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+        localTracks.isAudioEnabled,
+        localTracks.enableAudio,
+        localTracks.disableAudio,
+    ])
 
     const handleToggleCamera = useCallback(async () => {
         if (localTracks.isVideoEnabled) {
@@ -157,22 +159,18 @@ export default function MeetingPage() {
         } else {
             await localTracks.enableVideo()
         }
-    }, [localTracks])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+        localTracks.isVideoEnabled,
+        localTracks.enableVideo,
+        localTracks.disableVideo,
+    ])
 
     const handleLeave = useCallback(async () => {
-        // Only emit events if user is authenticated
+        // Note: Event emission (participant left, meeting ended) now handled by integratedMeetingService
+
+        // Flush any pending events before leaving
         if (userId) {
-            // Emit participant left event
-            meetingEventEmitter.emitParticipantLeft(
-                meetingId,
-                `${meetingId}-${userId}`,
-                userId
-            )
-
-            // Emit meeting ended event
-            meetingEventEmitter.emitMeetingEnded(meetingId)
-
-            // Flush any pending events before leaving
             await flushEvents()
         }
 
@@ -184,7 +182,7 @@ export default function MeetingPage() {
 
         // Navigate back
         router.push('/dashboard')
-    }, [localTracks, meeting, router, meetingId, flushEvents, userId])
+    }, [localTracks, meeting, router, flushEvents, userId])
 
     const handleLayoutChange = useCallback((layout: LayoutType) => {
         setCurrentLayout(layout)
@@ -194,6 +192,11 @@ export default function MeetingPage() {
     const allParticipants = useMemo(() => {
         const participantList: any[] = []
 
+        console.log('[MeetingPage] 🔄 Building participants list:', {
+            totalParticipants: meeting.participantList.length,
+            tracksByParticipant: Object.keys(remoteTracks.tracksByParticipant),
+        })
+
         // Add all participants from meeting state
         for (const participant of meeting.participantList) {
             let videoTrackObj: any = null
@@ -202,19 +205,43 @@ export default function MeetingPage() {
             if (participant.isLocal) {
                 videoTrackObj = localTracks.getVideoTrack()
                 // Local audio is not attached to video element
+                console.log('[MeetingPage] 📍 Local participant:', {
+                    id: participant.id,
+                    hasVideoTrack: !!videoTrackObj,
+                })
             } else {
                 const remoteParticipantTracks =
                     remoteTracks.tracksByParticipant[participant.id]
+
+                console.log('[MeetingPage] 👥 Remote participant:', {
+                    id: participant.id,
+                    displayName: participant.displayName,
+                    hasTracks: !!remoteParticipantTracks,
+                    tracks: remoteParticipantTracks,
+                })
+
                 if (remoteParticipantTracks) {
                     if (remoteParticipantTracks.video) {
                         videoTrackObj = trackService.getRemoteTrack(
                             remoteParticipantTracks.video.id
                         )
+                        console.log('[MeetingPage] Retrieved video track:', {
+                            participantId: participant.id,
+                            trackId: remoteParticipantTracks.video.id,
+                            trackObj: !!videoTrackObj,
+                            isMuted: remoteParticipantTracks.video.isMuted,
+                        })
                     }
                     if (remoteParticipantTracks.audio) {
                         audioTrackObj = trackService.getRemoteTrack(
                             remoteParticipantTracks.audio.id
                         )
+                        console.log('[MeetingPage] Retrieved audio track:', {
+                            participantId: participant.id,
+                            trackId: remoteParticipantTracks.audio.id,
+                            trackObj: !!audioTrackObj,
+                            isMuted: remoteParticipantTracks.audio.isMuted,
+                        })
                     }
                 }
             }
