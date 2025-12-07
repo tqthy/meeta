@@ -591,6 +591,24 @@ services:
     networks:
       meet.jitsi:
 
+  # ============================================================================
+  # TRANSCRIPTION SERVICE
+  # ============================================================================
+
+  # Vosk speech recognition server
+  vosk-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.kaldi-vi
+    container_name: vosk-server
+    restart: ${RESTART_POLICY:-unless-stopped}
+    ports:
+      - "2700:2700"
+    environment:
+      - TZ
+    networks:
+      meet.jitsi:
+
 # Custom network so all services can communicate using a FQDN
 networks:
   meet.jitsi:

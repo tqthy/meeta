@@ -1,0 +1,4 @@
+FROM python:3.9
+
+RUN pip install vosk
+RUN git clone https://github.com/alphacep/vosk-server /opt/vosk-server

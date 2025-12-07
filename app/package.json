@@ -6,7 +6,11 @@
         "dev": "next dev --turbopack",
         "build": "next build --turbopack",
         "start": "next start",
-        "lint": "eslint"
+        "lint": "eslint",
+        "prisma:generate": "prisma generate",
+        "prisma:push": "prisma db push",
+        "prisma:studio": "prisma studio",
+        "start:with-prisma": "npm run prisma:generate && npm run prisma:push && npm run dev"
     },
     "dependencies": {
         "@jitsi/react-sdk": "^1.4.4",
