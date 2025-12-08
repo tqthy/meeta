@@ -1,0 +1,25 @@
+```plaintext
+**Class SpeakerStats** Model that tracks each user's total time as a dominant speaker. Also records the user's last-known display name so stats remain useful after the user leaves.
+
+The following lists constructors, properties and methods in CSV form:
+
+```csv
+Stt,Name,Type,Parameters and description,Description
+1,constructor,Constructor,"userId: string (ID of tracked user), displayName: string (user display name), isLocalStats: boolean (true if tracking local user)",Initialize a new `SpeakerStats` instance.
+2,addFaceLandmarks,Method,"faceLandmarks: IFaceLandmarks","Add new face-landmark data to the speaker stats." 
+3,getDisplayName,Method,N/A,Return the display name of the tracked user.
+4,getFaceLandmarks,Method,N/A,Return the face landmarks for the user (`IFaceLandmarks[]`).
+5,getTotalDominantSpeakerTime,Method,N/A,Return total time (ms) the tracked user has been the dominant speaker.
+6,getUserId,Method,N/A,Return the tracked user's ID.
+7,hasLeft,Method,N/A,Return whether the user has left the meeting (true if left).
+8,isDominantSpeaker,Method,N/A,Return true if the tracked user is currently the dominant speaker.
+9,isLocalStats,Method,N/A,Return true if the stats track a local user.
+10,markAsHasLeft,Method,N/A,Mark the user as having left the meeting.
+11,setDisplayName,Method,"newName: string",Update the last-known display name for the tracked user.
+12,setDominantSpeaker,Method,"isNowDominantSpeaker: boolean, silence: boolean","Set the dominant-speaker state for the tracked user (accumulate time when true). The `silence` flag indicates whether the dominant speaker is currently silent." 
+13,setFaceLandmarks,Method,"faceLandmarks: IFaceLandmarks[]",Set face landmarks for the user.
+```
+
+---
+Source: workspace reference files.
+```

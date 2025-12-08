@@ -1,0 +1,17 @@
+```plaintext
+**Class SendVideoController** Manages send-video constraints across `JingleSessionPC` media sessions that belong to a `JitsiConference`. It resolves the effective send constraints by considering the local user's send preference and the remote party's receive preference. Only active session receive values are considered for decision-making.
+
+The following lists constructors, properties and methods in CSV form:
+
+```csv
+Stt,Name,Type,Parameters and description,Description
+1,constructor,Constructor,"conference: JitsiConference (the conference instance this controller will manage)",Create a new `SendVideoController` instance for a given conference [2].
+2,configureConstraintsForLocalSources,Method,N/A,Configure encoding constraints for local sources when a media connection is established or becomes active [3].
+3,onMediaSessionStarted,Method,"mediaSession: JingleSessionPC (media session started)",Handle `JitsiConferenceEvents.MEDIA_SESSION_STARTED` when the conference creates a new media session. Note: this does not guarantee the session is active yet [3, 4].
+4,onSenderConstraintsReceived,Method,"videoConstraints: IVideoConstraint (video constraints received from the bridge)",Apply sender constraints if they have changed [4].
+5,setPreferredSendMaxFrameHeight,Method,"maxFrameHeight: number (preferred maximum send frame height)",Set preferred maximum send frame height for local send streams.
+```
+
+---
+Source: workspace reference files.
+```

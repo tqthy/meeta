@@ -1,0 +1,21 @@
+```plaintext
+**Class QualityController** Maintains optimal video quality on the local endpoint by controlling codec selection, encode resolution and desired receive resolution for remote video streams. It also reacts to outbound/inbound RTP stats reported by the underlying PeerConnection.
+
+```csv
+Stt,Name,Type,Parameters and description,Description
+1,constructor,Constructor,"conference: JitsiConference, options: { enableAdaptiveMode: boolean, jvb: object, lastNRampupTime: number, p2p: object } (video quality settings from config.js)",Create a new `QualityController` instance [2].
+2,audioController,Accessor (Get),N/A,Return the `ReceiverAudioController` instance [3].
+3,codecController,Accessor (Get),N/A,Return the `CodecSelection` instance [4].
+4,receiveVideoController,Accessor (Get),N/A,Return the `ReceiveVideoController` instance [4].
+5,sendVideoController,Accessor (Get),N/A,Return the `SendVideoController` instance [5].
+6,_debounce,Method,"func: Function, delay: number (ms)",Create a debounced function delaying execution until the specified delay has elapsed [5, 6].
+7,_lowerOrRaiseLastN,Method,"cpuLimited: boolean","Adjust lastN to reduce the number of remote video sources received from the bridge to improve encode resolution for outgoing video. Returns true if action performed" [6, 7].
+8,_maybeLowerReceiveResolution,Method,N/A,Adjust requested receive resolution for remote video sources by updating receiver constraints to improve outgoing encode resolution [7].
+9,_maybeSwitchVideoCodec,Method,"trackId: number (local video track id)",Update local endpoint codec priority for the active media session and switch video codec if needed. Returns true if codec was changed [8].
+10,_performQualityOptimizations,Method,"sourceStats: ISourceStats (outbound RTP stats for a local video track)",Adjust codec, lastN or receive resolution based on reported send resolution and browser-imposed limits in WebRTC stats. No action when adaptive mode is disabled [8, 9].
+11,_processOutboundRtpStats,Method,"tpc: TraceablePeerConnection, stats: Map<number, IOutboundRtpStats>",Process outbound RTP stats reported by the PeerConnection and perform runtime adjustments to improve quality when adaptive mode is enabled [9, 10].
+```
+
+---
+Source: workspace reference files.
+```

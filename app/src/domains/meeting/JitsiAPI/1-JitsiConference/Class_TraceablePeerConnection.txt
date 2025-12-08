@@ -1,0 +1,100 @@
+```plaintext
+**Class TraceablePeerConnection** Implements a traceable wrapper around a `RTCPeerConnection` with helpers for managing local/remote tracks, SSRCs, statistics and simulcast/RTX handling.
+
+```csv
+Stt,Name,Type,Parameters and description,Description
+1,constructor,Constructor,"rtc: RTC (service instance), id: number (peer connection id assigned by parent RTC), signalingLayer: SignalingLayer, pcConfig: RTCConfiguration, constraints: { optional?: any[] }, isP2P: boolean, options: ITPCOptions",Create a new `TraceablePeerConnection` instance [1, 2, 3].
+2,audioTransferActive,Property,boolean,Whether audio transfer is currently active [5].
+3,codecSettings,Property,ICodecSettings,Codec configuration [5].
+4,eventEmitter,Property,EventEmitter,Event emitter instance [5].
+5,id,Property,number,PeerConnection id [5].
+6,isP2P,Property,boolean,Whether this connection is P2P [5].
+7,localSdpMunger,Property,LocalSdpMunger,Local SDP munger instance [6].
+8,localSSRCs,Property,Map<number, ISsrcInfo>,Map of local SSRC information [6].
+9,localTracks,Property,Map<number, JitsiLocalTrack>,Local tracks map [6].
+10,localTrackTransceiverMids,Property,Map<number, string>,Map of local track -> transceiver mid [6].
+11,maxStats,Property,number,Max stats entries to keep [6].
+12,onconnectionstatechange,Property,(event: Event) => void (optional),Optional handler for connection state change events [7].
+13,ondatachannel,Property,(event: RTCDataChannelEvent) => void (optional),Optional handler for datachannel events [7].
+14,onicecandidate,Property,(event: RTCPeerConnectionIceEvent) => void (optional),Optional ICE candidate handler [7].
+15,oniceconnectionstatechange,Property,(event: Event) => void (optional),Optional ICE connection state change handler [7, 8].
+16,onnegotiationneeded,Property,(event: Event) => void (optional),Optional negotiationneeded handler [8].
+17,onsignalingstatechange,Property,(event: Event) => void (optional),Optional signaling state change handler [8].
+18,onTrack,Property,(evt: RTCTrackEvent) => void,Track event handler [8].
+19,options,Property,ITPCOptions,TraceablePeerConnection configuration options [8].
+20,peerconnection,Property,RTCPeerConnection,Underlying WebRTC PeerConnection instance [9].
+21,remoteSources,Property,Map<string, number>,Map of remote sourceName -> SSRCs [9].
+22,remoteSSRCs,Property,Set<number>,Set of remote SSRCs seen [9].
+23,remoteTracks,Property,"Map<string, Map<MediaType, Set<JitsiRemoteTrack>>>",Remote tracks indexed by endpoint and media type [9].
+24,remoteTracksBySsrc,Property,Map<number, JitsiRemoteTrack>,Remote tracks keyed by SSRC [9, 10].
+25,rtc,Property,RTC,Reference to the RTC service [10].
+26,rtxModifier,Property,RtxModifier,RTX modifier helper [10].
+27,simulcast,Property,SdpSimulcast,Simulcast helper [10].
+28,stats,Property,Record<string, IStatsEntry>,Collected stats [10].
+29,statsInterval,Property,number (optional),Stats collection interval [10].
+30,tpcUtils,Property,TPCUtils,Utilities for TPC [11].
+31,trace,Property,ITraceFunction,Tracing function [11].
+32,updateLog,Property,IUpdateLogEntry[],Update log entries [11].
+33,videoTransferActive,Property,boolean,Whether video transfer is currently active [11].
+34,dumpSDP,Static Property,"(description: RTCSessionDescription) => string",Return a string representation of a SessionDescription [11, 12].
+35,connectionState,Accessor (Get),string,Get the connection state of the PeerConnection [12].
+36,iceConnectionState,Accessor (Get),string,Get the ICE connection state of the PeerConnection [12].
+37,localDescription,Accessor (Get),RTCSessionDescription,Get the local description with optional transforms for simulcast and stream identification [12, 13].
+38,remoteDescription,Accessor (Get),RTCSessionDescription,Get the remote description with optional adjustments for media direction in P2P mode [13].
+39,signalingState,Accessor (Get),string,Get the signaling state of the PeerConnection [13].
+40,_createRemoteTrack,Method,"ownerEndpointId: any, sourceName: any, trackDetails: any",Instantiate a `JitsiRemoteTrack` with data provided by the signaling layer and SDP [14].
+41,_isSharingScreen,Method,(),Check whether screen-sharing is currently active [14, 15].
+42,_processAndExtractSourceInfo,Method,"localSDP: string",Process local SDP and build SSRC maps for each local track [15].
+43,_remoteTrackAdded,Method,"stream: MediaStream, track: MediaStreamTrack, transceiver?: RTCRtpTransceiver",Called on PeerConnection 'track added' / 'stream added' events. Resolve owner and SSRC for the track [15, 16].
+44,_remoteTrackRemoved,Method,"stream: MediaStream, track: MediaStreamTrack",Handle removal of a remote media track [16, 17].
+45,_removeRemoteTrack,Method,"toBeRemoved: JitsiRemoteTrack",Remove and cleanup the given `JitsiRemoteTrack` instance [17].
+46,_sendRtcStatsEvent,Method,"track: JitsiLocalTrack, muted: boolean",Send an rtcstats entry for a local track mute state change [18].
+47,addIceCandidate,Method,"candidate: RTCIceCandidate",Add an ICE candidate to the PeerConnection [18, 19].
+48,addRemoteSsrc,Method,"ssrc: number",Track SSRCs observed. Return true if this SSRC is new [19].
+49,addTrack,Method,"track: JitsiLocalTrack, isInitiator?: boolean",Add a `JitsiLocalTrack` to this TPC [19, 20].
+50,addTrackToPc,Method,"track: JitsiLocalTrack",Add a local track to the underlying RTCPeerConnection [20].
+51,calculateExpectedSendResolution,Method,"localTrack: JitsiLocalTrack",Return the expected send resolution for a local video track based on active encodings [21].
+52,close,Method,(),Close the underlying RTCPeerConnection and remove all remote tracks [21, 22].
+53,configureAudioSenderEncodings,Method,"localAudioTrack?: JitsiLocalTrack",Configure sender encodings for audio tracks added to the PeerConnection [22].
+54,configureVideoSenderEncodings,Method,"localVideoTrack?: JitsiLocalTrack, codec?: CodecMimeType",Configure sender encodings depending on video type, scalability mode and codec bitrate settings [23].
+55,createAnswer,Method,"constraints: RTCOfferOptions",Create an SDP answer for the PeerConnection [24].
+56,createDataChannel,Method,"label: string, opts: RTCDataChannelInit",Create a new data channel on the PeerConnection [24, 25].
+57,createOffer,Method,"constraints: RTCOfferOptions",Create an SDP offer for the PeerConnection [25].
+58,doesTrueSimulcast,Method,"localTrack: JitsiLocalTrack",Check whether the browser performs true simulcast (always true for VP8) [25, 26].
+59,findReceiverForTrack,Method,"track: MediaStreamTrack",Return the receiver corresponding to the given MediaStreamTrack [26].
+60,findSenderForTrack,Method,"track: MediaStreamTrack",Return the sender corresponding to the given MediaStreamTrack [27].
+61,getAudioLevels,Method,"speakerList?: string[]",Get audio levels for remote audio tracks [27, 28].
+62,getConfiguredVideoCodecs,Method,"description?: RTCSessionDescription",Return currently configured codecs in preference order on the PeerConnection [28, 29].
+63,getConnectionState,Method,(),Forward peerconnection.iceConnectionState converting "completed" to "connected" where appropriate [29, 30].
+64,getLocalSSRC,Method,"localTrack: JitsiLocalTrack",Return local SSRC for a given local track [30].
+65,getLocalTracks,Method,"mediaType?: MediaType (optional: audio or video)",Return local tracks for the given media type or all local tracks if not specified [30, 31].
+66,getLocalVideoSSRCs,Method,"localTrack: JitsiLocalTrack",Return SSRCs associated with the given local video track [31].
+67,getLocalVideoTracks,Method,(),Retrieve local video tracks [31].
+68,getRemoteSourceInfoByParticipant,Method,"id: string",Return a map of sourceName -> SSRCs for a remote participant [32].
+69,getRemoteSourceInfoBySourceName,Method,"sourceName: string",Return remote sourceInfo for the given source name [32, 33].
+70,getRemoteTracks,Method,"endpointId?: string, mediaType?: MediaType (optional)",Get all remote tracks known to this PeerConnection instance [33, 34].
+71,getSsrcByTrackId,Method,"id: string (JitsiTrack id)",Attempt to resolve an SSRC for the given JitsiTrack id [34].
+72,getStats,Method,(),Get call-related stats from the PeerConnection [34, 35].
+73,getTargetVideoBitrates,Method,"localTrack: JitsiLocalTrack",Return configured target bitrates for a local video source [35].
+74,getTrackBySSRC,Method,"ssrc: number",Attempt to find a `JitsiTrack` for the given SSRC [35, 36].
+75,isSpatialScalabilityOn,Method,(),Return whether spatial scalability is enabled for this TPC [36].
+76,processLocalSdpForTransceiverInfo,Method,"localTracks: JitsiLocalTrack[]",Process local SDP and store mline mids associated with the given tracks [36, 37].
+77,removeTrack,Method,"localTrack: JitsiLocalTrack",Remove a local track from this TPC [37].
+78,removeTrackFromPc,Method,"localTrack: JitsiLocalTrack",Remove a local track from the underlying RTCPeerConnection [38].
+79,replaceTrack,Method,"oldTrack: JitsiLocalTrack, newTrack: JitsiLocalTrack, isMuteOperation?: boolean",Replace `oldTrack` with `newTrack` on the PeerConnection [39, 40].
+80,sendTones,Method,"tones: string, duration?: number, interToneGap?: number",Send DTMF tones if supported [40, 41].
+81,setDesktopSharingFrameRate,Method,"maxFps: number",Enable or disable simulcast for screenshare depending on requested FPS [41, 42].
+82,setLocalDescription,Method,"description: RTCSessionDescription",Set the local description on the PeerConnection [42].
+83,setMediaTransferActive,Method,"enable: boolean, mediaType?: MediaType",Resume or pause media on the PeerConnection by setting active on RTCRtpEncodingParameters [42, 43].
+84,setRemoteDescription,Method,"description: RTCSessionDescription",Set the remote description on the PeerConnection [43, 44].
+85,setSenderVideoConstraints,Method,"frameHeight: number, localVideoTrack: JitsiLocalTrack, preferredCodec?: CodecMimeType",Change the resolution for the outgoing video stream, set degradation preference on the sender and configure max bitrate [44, 45].
+86,setVideoCodecs,Method,"codecList: CodecMimeType[], screenshareCodec: CodecMimeType",Set codec preferences on the PeerConnection [45, 46].
+87,setVideoTransferActive,Method,"active: boolean",Enable/disable outgoing video media transfer on this PeerConnection [46, 47].
+88,toString,Method,(),Create textual representation of this `TraceablePeerConnection` instance [47].
+89,updateRemoteSources,Method,"sourceMap: Map<string, ITPCSourceInfo>, isAdd: boolean",Update remote source mapping [48].
+90,usesCodecSelectionAPI,Method,(),Return true if the codec-selection API is used [48, 49].
+```
+
+---
+Source: workspace reference files.
+```

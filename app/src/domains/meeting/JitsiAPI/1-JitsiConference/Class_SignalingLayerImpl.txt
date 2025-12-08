@@ -1,0 +1,32 @@
+```plaintext
+**Class SignalingLayerImpl** Default XMPP implementation of the `SignalingLayer` interface. Obtains conference signaling data from MUC presence and exposes methods used by the runtime to map sources, SSRC owners and peer media info.
+
+```csv
+Stt,Name,Type,Parameters and description,Description
+1,constructor,Constructor,N/A,Create a new `SignalingLayerImpl` instance (overrides `SignalingLayer.constructor`) [2].
+2,addCancellableListener,Method,"eventName: string, listener: EventListener",Add a cancellable listener. Returns an unsubscribe function (inherited from `SignalingLayer`) [2].
+3,addEventListener,Method,"eventId: string, handler: EventListener",Alias for the `on` method (inherited) [7].
+4,addListener,Method,"eventName: string, listener: EventListener",Add a new event listener (inherited) [3, 7].
+5,emit,Method,"event: string, ...args: any[]",Emit an event (inherited) [3].
+6,getPeerMediaInfo,Method,"owner: string, mediaType: MediaType, sourceName?: string",Get peer media info (override of `SignalingLayer.getPeerMediaInfo`) [3, 8].
+7,getPeerSourceInfo,Method,"owner: string, sourceName: string",Get peer source info (override of `SignalingLayer.getPeerSourceInfo`) [8].
+8,getSSRCOwner,Method,"ssrc: number",Get SSRC owner (override of `SignalingLayer.getSSRCOwner`) [9].
+9,getTrackSourceName,Method,"ssrc: number",Get track source name (override of `SignalingLayer.getTrackSourceName`) [9].
+10,listenerCount,Method,"eventName?: string",Return listener count for the specified event (inherited) [4, 9].
+11,off,Method,"eventId: string, handler?: EventListener",Remove an event listener (inherited) [4].
+12,on,Method,"eventId: string, handler: EventListener",Attach a handler for events (inherited) [4, 5].
+13,once,Method,"eventId: string, handler: EventListener",Add a one-time listener for an event (inherited) [5].
+14,removeAllListeners,Method,N/A,Remove all listeners for the event emitter (inherited) [6].
+15,removeEventListener,Method,"eventId: string, handler?: EventListener",Alias for the `off` method (inherited) [6].
+16,removeListener,Method,"eventName: string, listener: EventListener",Remove a listener (inherited) [10].
+17,removeSSRCOwners,Method,"ssrcList: number[]",Remove SSRC owners (override of `SignalingLayer.removeSSRCOwners`) [10].
+18,setChatRoom,Method,"room: ChatRoom",Set the `ChatRoom` instance used and wire presence listeners [10, 11].
+19,setSSRCOwner,Method,"ssrc: number, newEndpointId: string, newSourceName: string",Set SSRC owner (override of `SignalingLayer.setSSRCOwner`) [11].
+20,setTrackMuteStatus,Method,"sourceName: string, muted: boolean",Set track mute status (override of `SignalingLayer.setTrackMuteStatus`) [11, 12].
+21,setTrackVideoType,Method,"sourceName: string, videoType: VideoType",Set the video type for a track (override of `SignalingLayer.setTrackVideoType`) [12].
+22,updateSsrcOwnersOnLeave,Method,"id: string",Update SSRC owners on participant leave (override of `SignalingLayer.updateSsrcOwnersOnLeave`) [12, 13].
+```
+
+---
+Source: workspace reference files.
+```

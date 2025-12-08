@@ -32,7 +32,7 @@ export default async function DashboardPage() {
                     </p>
                 </div>
                 <Button asChild size="lg">
-                    <Link href="/meeting/create">
+                    <Link href="/jitsi-meeting/create">
                         <Plus className="mr-2 h-4 w-4" />
                         New Meeting
                     </Link>
@@ -42,7 +42,7 @@ export default async function DashboardPage() {
             {/* Quick Actions */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                    <Link href="/meeting/create">
+                    <Link href="/jitsi-meeting/create">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">
                                 Start Instant Meeting
@@ -58,7 +58,7 @@ export default async function DashboardPage() {
                 </Card>
 
                 <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                    <Link href="/meeting/create?schedule=true">
+                    <Link href="/jitsi-meeting/create?schedule=true">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">
                                 Schedule Meeting

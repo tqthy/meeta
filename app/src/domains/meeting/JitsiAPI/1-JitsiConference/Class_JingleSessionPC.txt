@@ -1,0 +1,74 @@
+```plaintext
+**Class JingleSessionPC** Represents a Jingle (XMPP) session backed by a WebRTC PeerConnection. Handles session initiation, accept/answer flow, source management and Jingle-specific signaling for a single session.
+
+The following lists constructors, properties and methods in CSV form:
+
+```csv
+Stt,Name,Type,Parameters and description,Description
+1,constructor,Constructor,"sid: string (Jingle session ID), localJid: string (our JID), remoteJid: string (peer's JID), connection: XmppConnection, mediaConstraints: MediaStreamConstraints, pcConfig: RTCConfiguration, isP2P: boolean, isInitiator: boolean",Create a new `JingleSessionPC` instance [2, 3].
+2,connection,Property,N/A,XMPP connection used by the session [4].
+3,dripContainer,Property,RTCIceCandidate[],When using dripping, stores ICE candidates to be sent in batches [4].
+4,establishmentDuration,Property,number,Duration of session establishment [4].
+5,failICE,Property,boolean,Whether ICE negotiation failed [5].
+6,isInitiator,Property,boolean,Indicates whether this instance is the initiator or the responder [5].
+7,lastIceCandidate,Property,boolean,Whether the last ICE candidate has been processed [5].
+8,localJid,Property,string,Our JID [5].
+9,mediaConstraints,Property,object,Media constraints passed to PeerConnection on createAnswer/Offer [6].
+10,modificationQueue,Property,AsyncQueue,Queue for queued modifications [6].
+11,numRemoteAudioSources,Property,number,Number of remote audio sources [6].
+12,numRemoteVideoSources,Property,number,Number of remote video sources [6].
+13,options,Property,IJingleSessionPCOptions,Configuration options [7].
+14,pcConfig,Property,object,RTCConfiguration object passed to the PeerConnection constructor [7].
+15,peerconnection,Property,TraceablePeerConnection,The `TraceablePeerConnection` instance backing this session [7].
+16,remoteJid,Property,string,Remote peer JID [7].
+17,sid,Property,string,Jingle session identifier [8].
+18,state,Property,JingleSessionState,Session state - uninitialized until `initialize` is called [8].
+19,useDrip,Property,boolean,Whether dripping (batched ICE) is used [8].
+20,initiatorJid,Accessor (Get),N/A,Return the JID of the initiator for this session [9].
+21,responderJid,Accessor (Get),N/A,Return the JID of the responder for this session [9].
+22,acceptOffer,Method,"jingleOffer: Element, success: () => void, failure: (error: any) => void, localTracks?: JitsiLocalTrack[] = []",Accept an incoming 'session-initiate' Jingle and send 'session-accept' [9, 10].
+23,addCancellableListener,Method,"eventName: string, listener: EventListener",Add a cancellable listener [11].
+24,addEventListener,Method,"eventId: string, handler: EventListener",Alias for the `on` method [11, 12].
+25,addIceCandidates,Method,"elem: Element",Add ICE candidates [12].
+26,addListener,Method,"eventName: string, listener: EventListener",Add a new event listener [12, 13].
+27,addRemoteStream,Method,"elem: Element[] (array of Jingle 'content' elements)",Handle a Jingle source-add notification for this session [13].
+28,addSources,Method,"contents: unknown (array of Jingle 'content' elements)",Handle an 'add-source' event [14].
+29,addTracks,Method,"localTracks?: JitsiLocalTrack[] = null",Add tracks to the PeerConnection. Should be called when a JitsiLocalTrack is added for the first time [14, 15].
+30,addTrackToPc,Method,"track: JitsiLocalTrack",Re-add a local track to the PeerConnection backing this session [15].
+31,close,Method,N/A,Close the underlying PeerConnection and stop the modification queue [16].
+32,doInitialize,Method,"options: IJingleSessionPCOptions",Initialize internals [16, 17].
+33,emit,Method,"event: string, ...args: any[]",Emit an event [17].
+34,getIceConnectionState,Method,N/A,Return the ICE connection state for the PeerConnection [17, 18].
+35,getRemoteSourcesRecvMaxFrameHeight,Method,N/A,Return preferred receive max-frame-height priorities for remote video sources (ISourceFrameHeight[]) [18].
+36,getState,Method,N/A,Return the current state of this JingleSession instance [18, 19].
+37,initialize,Method,"room: ChatRoom, rtc: RTC, signalingLayer: SignalingLayerImpl, options: object",Prepare this object to initialize a session [19, 20].
+38,invite,Method,"localTracks?: JitsiLocalTrack[] = []",Create an offer and send a 'session-initiate' Jingle to the remote peer [20, 21].
+39,listenerCount,Method,"eventName?: string",Return the number of listeners for the specified event [21].
+40,modifyContents,Method,"jingleContents: Element (IQ 'content-modify')",Toggle local video based on the 'senders' attribute of the video content in an incoming IQ 'content-modify'. Also inspect and modify local video resolution if needed [21, 22].
+41,off,Method,"eventId: string, handler?: EventListener",Remove an event listener [22].
+42,on,Method,"eventId: string, handler: EventListener",Attach an event handler [22, 23].
+43,once,Method,"eventId: string, handler: EventListener",Add a one-time listener for an event [23].
+44,onTerminated,Method,"reasonCondition: string, reasonText: string",Handle session termination [23, 24].
+45,processSourceMap,Method,"message: any, mediaType: MediaType",Process a source-map message received from the bridge [24, 25].
+46,removeAllListeners,Method,N/A,Remove all listeners [25].
+47,removeEventListener,Method,"eventId: string, handler?: EventListener",Alias for the `off` method [25, 26].
+48,removeListener,Method,"eventName: string, listener: EventListener",Remove a listener [26].
+49,removeRemoteStream,Method,"elem: Element[]",Handle a Jingle source-remove notification for this session [27].
+50,removeRemoteStreamsOnLeave,Method,"id: string",Remove SSRCs associated with a remote participant from the remote description when that participant leaves [27].
+51,removeSources,Method,"contents: unknown",Handle a 'remove-source' event [28].
+52,removeTrackFromPc,Method,"track: JitsiLocalTrack",Remove a local track from the PeerConnection as part of a mute operation [28, 29].
+53,replaceTrack,Method,"oldTrack: JitsiLocalTrack, newTrack: JitsiLocalTrack",Replace `oldTrack` with `newTrack` and perform a single offer/answer if necessary [29, 30].
+54,setAnswer,Method,"jingleAnswer: Element",Set an answer received from the remote peer as the remote description [30, 31].
+55,setMediaTransferActive,Method,"active: boolean",Resume or pause media transfer over the underlying PeerConnection [31].
+56,setP2pVideoTransferActive,Method,"videoActive: boolean",Resume or pause video media transfer over a P2P PeerConnection [31, 32].
+57,setReceiverVideoConstraint,Method,"sourceReceiverConstraints: Map<string, number>",Adjust preferred maximum frame height priorities remote peers should receive. Signals remote P2P peers [32, 33].
+58,setSenderVideoConstraint,Method,"maxFrameHeight: number, sourceName?: string = null",Set resolution constraints on local video tracks [33, 34].
+59,setVideoCodecs,Method,"codecList: CodecMimeType[], screenshareCodec: CodecMimeType",Update codecs on the PeerConnection and renegotiate if needed [34, 35].
+60,terminate,Method,"success: () => void, failure: (error: IJingleError) => void, options?: ITerminateOptions = {}",Terminate the session [35].
+61,toString,Method,N/A,Return a short string summary of this session [35, 36].
+62,parseSourceMaxFrameHeight,Static Method,"jingleContents: Element",Parse source names and max-frame-height values from an IQ 'content-modify' [36].
+```
+
+---
+Source: workspace reference files.
+```

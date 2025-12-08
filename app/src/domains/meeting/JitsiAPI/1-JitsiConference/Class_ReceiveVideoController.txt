@@ -1,0 +1,25 @@
+```plaintext
+**Class ReceiveVideoController** Manages receive-video constraints for a `JitsiConference`. The application determines these constraints based on how remote video streams should be displayed. This class communicates the selected constraints to the bridge over the bridge channel.
+
+The following lists constructors, properties and methods in CSV form:
+
+```csv
+Stt,Name,Type,Parameters and description,Description
+1,constructor,Constructor,"conference: JitsiConference (the conference instance this controller will manage)",Create a new `ReceiveVideoController` instance for a given conference [1].
+2,_getDefaultSourceReceiverConstraints,Method,"mediaSession: JingleSessionPC (media session), maxFrameHeight?: number (requested max frame height for remote sources)",Returns a map of all remote source names to their corresponding maximum frame heights [2].
+3,_updateIndividualConstraints,Method,"maxFrameHeight?: number (requested max frame height for remote sources)",Update per-source constraints based on the configured max height [3].
+4,getCurrentReceiverConstraints,Method,N/A,"Returns the set of receiver constraints currently set on the bridge channel (IReceiverVideoConstraints)" [3, 4].
+5,getLastN,Method,N/A,Returns the current lastN value for the conference [4].
+6,isLastNLimitedByCpu,Method,N/A,Check whether last-N is being lowered due to CPU limitations [4].
+7,onMediaSessionStarted,Method,"mediaSession: JingleSessionPC (media session started)",Handle `JitsiConferenceEvents.MEDIA_SESSION_STARTED`, applying preferred receive max-frame-height to the media session [4, 5].
+8,setAssumedBandwidthBps,Method,"assumedBandwidthBps?: number (new value)",Set the assumed bandwidth (bps) that the local participant should expect from remote participants [5].
+9,setLastN,Method,"value: number (new lastN value, -1 for no limit)",Select a new `lastN` value. The requested number of videos will be sent once the value takes effect [5, 6].
+10,setLastNLimitedByCpu,Method,"enabled: boolean",Update the `lastNLimitedByCpu` flag [6].
+11,setPreferredReceiveMaxFrameHeight,Method,"maxFrameHeight?: number (new value)",Set the preferred maximum receive-frame-height for the local participant [7].
+12,setReceiverConstraints,Method,"constraints: IReceiverVideoConstraints (video constraints)",Set the receiver constraints for the conference [7].
+13,setReceiveResolutionLimitedByCpu,Method,"enabled: boolean",Update the `receiveResolutionLimitedByCpu` flag [8].
+```
+
+---
+Source: workspace reference files.
+```

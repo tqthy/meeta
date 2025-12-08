@@ -1,21 +1,21 @@
-    ```plaintext
-    **Title:** `AUTH_ERROR_TYPES` (Enumeration)
+```plaintext
+**Title:** `AUTH_ERROR_TYPES` (Enumeration)
 
-    **Purpose:** Liệt kê các loại lỗi xác thực (auth) chuyển kèm với lỗi `NOT_ALLOWED_ERROR` khi tham gia/khởi tạo hội nghị.
+**Purpose:** Lists authentication-related error types that may accompany a `NOT_ALLOWED_ERROR` when creating or joining a conference. Use these values to present appropriate UI messaging or trigger specific auth flows.
 
-    **Members (CSV)**
-        ```csv
-        stt,enum,value,description
-        1,GENERAL,"general","General authentication error"
-        2,NO_MAIN_PARTICIPANTS,"no-main-participants","No main participants available"
-        3,NO_VISITORS_LOBBY,"no-visitors-lobby","Visitors-only lobby present"
-        4,PROMOTION_NOT_ALLOWED,"promotion-not-allowed","Promotion to participant not allowed"
-        5,ROOM_CREATION_RESTRICTION,"room-creation-restriction","Room creation restricted"
-        6,ROOM_UNAUTHENTICATED_ACCESS_DISABLED,"authentication-required","Unauthenticated access disabled"
-        ```
+**Members (CSV)**
+```csv
+stt,enum,value,description
+1,GENERAL,"general","General authentication error"
+2,NO_MAIN_PARTICIPANTS,"no-main-participants","No main participants available"
+3,NO_VISITORS_LOBBY,"no-visitors-lobby","Conference has a visitors-only lobby"
+4,PROMOTION_NOT_ALLOWED,"promotion-not-allowed","Promotion to participant is not allowed"
+5,ROOM_CREATION_RESTRICTION,"room-creation-restriction","Room creation is restricted"
+6,ROOM_UNAUTHENTICATED_ACCESS_DISABLED,"authentication-required","Unauthenticated access is disabled"
+```
 
-    **Notes:** Mô tả chi tiết từng loại lỗi không có trong nguồn gốc; giữ nguyên tên enum/giá trị để tham chiếu trong mã.
+**Notes:** Detailed descriptions for each enum variant are not included in the upstream source—keep enum names and values stable to match runtime behavior in the library.
 
-    ---
-    Source: workspace reference files.
-    ```
+---
+Source: workspace reference files.
+```

@@ -17,7 +17,7 @@ import {
     useRemoteTracks,
     useEventPersistence,
 } from '@/domains/meeting/hooks'
-import { trackService, meetingEventEmitter } from '@/domains/meeting/services'
+import { trackService } from '@/domains/meeting/services'
 import { useSession } from '@/lib/auth-client'
 
 type LayoutType = 'auto' | 'grid' | 'sidebar' | 'spotlight'
@@ -98,37 +98,27 @@ export default function MeetingPage() {
             !meetingIsConnected &&
             !meetingIsConnecting
         ) {
-            joinMeeting(meetingId, userName)
+            joinMeeting(
+                meetingId,
+                userName,
+                meetingId,
+                userId,
+                undefined, // title - can be set later
+                undefined // description - can be set later
+            )
         }
     }, [
         hasInitialized,
         meetingId,
         userName,
+        userId,
         meetingIsConnected,
         meetingIsConnecting,
         joinMeeting,
     ])
 
-    // Emit meeting.started event when successfully joined (only if authenticated)
-    useEffect(() => {
-        if (meetingIsJoined && meetingId && userName && userId) {
-            meetingEventEmitter.emitMeetingStarted({
-                meetingId,
-                roomName: meetingId,
-                hostUserId: userId,
-                startedAt: new Date().toISOString(),
-            })
-
-            meetingEventEmitter.emitParticipantJoined({
-                participantId: `${meetingId}-${userId}`,
-                userId: userId,
-                meetingId,
-                displayName: userName,
-                role: 'HOST',
-                joinedAt: new Date().toISOString(),
-            })
-        }
-    }, [meetingIsJoined, meetingId, userName, userId])
+    // Note: Event emission now handled by integratedMeetingService
+    // No need to manually emit meeting.started and participant.joined events
 
     // Enable tracks after joining based on initial settings
     useEffect(() => {
@@ -140,7 +130,37 @@ export default function MeetingPage() {
                 localTracks.enableVideo()
             }
         }
-    }, [meetingIsJoined, initialMicEnabled, initialCameraEnabled, localTracks])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+        meetingIsJoined,
+        initialMicEnabled,
+        initialCameraEnabled,
+        localTracks.isAudioEnabled,
+        localTracks.isVideoEnabled,
+    ])
+
+    // CRITICAL: Cleanup on page unmount (user navigates away)
+    // This ensures device access is released even if user doesn't click Leave
+    // Use ref to avoid dependency on meeting object which changes frequently
+    const meetingRef = React.useRef(meeting)
+    meetingRef.current = meeting
+
+    useEffect(() => {
+        // This cleanup ONLY runs when the component actually unmounts (page navigation)
+        return () => {
+            console.log(
+                '[MeetingPage] 🧹 Page unmounting - cleaning up meeting'
+            )
+            // Use ref to access latest meeting object without causing re-runs
+            meetingRef.current.leaveMeeting().catch((err) => {
+                console.error(
+                    '[MeetingPage] Error during unmount cleanup:',
+                    err
+                )
+            })
+        }
+        // Empty dependency array = only runs on actual mount/unmount
+    }, [])
 
     // Media control handlers
     const handleToggleMic = useCallback(async () => {
@@ -149,7 +169,12 @@ export default function MeetingPage() {
         } else {
             await localTracks.enableAudio()
         }
-    }, [localTracks])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+        localTracks.isAudioEnabled,
+        localTracks.enableAudio,
+        localTracks.disableAudio,
+    ])
 
     const handleToggleCamera = useCallback(async () => {
         if (localTracks.isVideoEnabled) {
@@ -157,42 +182,50 @@ export default function MeetingPage() {
         } else {
             await localTracks.enableVideo()
         }
-    }, [localTracks])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+        localTracks.isVideoEnabled,
+        localTracks.enableVideo,
+        localTracks.disableVideo,
+    ])
 
     const handleLeave = useCallback(async () => {
-        // Only emit events if user is authenticated
-        if (userId) {
-            // Emit participant left event
-            meetingEventEmitter.emitParticipantLeft(
-                meetingId,
-                `${meetingId}-${userId}`,
-                userId
-            )
+        console.log('[MeetingPage] 🚪 Leave button clicked')
 
-            // Emit meeting ended event
-            meetingEventEmitter.emitMeetingEnded(meetingId)
-
+        try {
             // Flush any pending events before leaving
-            await flushEvents()
+            if (userId) {
+                await flushEvents()
+            }
+
+            // Leave the meeting (this will release tracks and disconnect)
+            await meeting.leaveMeeting()
+
+            // Navigate back
+            router.push('/dashboard')
+        } catch (error) {
+            console.error('[MeetingPage] Error during leave:', error)
+            // Still navigate away even on error
+            router.push('/dashboard')
         }
-
-        // Release all tracks first
-        await localTracks.releaseAllTracks()
-
-        // Leave the meeting
-        await meeting.leaveMeeting()
-
-        // Navigate back
-        router.push('/dashboard')
-    }, [localTracks, meeting, router, meetingId, flushEvents, userId])
+    }, [meeting, router, flushEvents, userId])
 
     const handleLayoutChange = useCallback((layout: LayoutType) => {
         setCurrentLayout(layout)
     }, [])
 
     // Build participants list for UI
+    // Note: This will rebuild on participant mute changes, which is intentional
+    // The key optimization is that RemoteVideo component now handles mute changes
+    // without recreating streams, so re-renders are cheap
     const allParticipants = useMemo(() => {
         const participantList: any[] = []
+
+        console.log('[MeetingPage] 🔄 Building participants list:', {
+            totalParticipants: meeting.participantList.length,
+            tracksByParticipant: Object.keys(remoteTracks.tracksByParticipant)
+                .length,
+        })
 
         // Add all participants from meeting state
         for (const participant of meeting.participantList) {
@@ -201,21 +234,47 @@ export default function MeetingPage() {
 
             if (participant.isLocal) {
                 videoTrackObj = localTracks.getVideoTrack()
-                // Local audio is not attached to video element
             } else {
                 const remoteParticipantTracks =
                     remoteTracks.tracksByParticipant[participant.id]
+
                 if (remoteParticipantTracks) {
                     if (remoteParticipantTracks.video) {
                         videoTrackObj = trackService.getRemoteTrack(
                             remoteParticipantTracks.video.id
+                        )
+                        console.log(
+                            '[MeetingPage] 📹 Remote video track for',
+                            participant.displayName,
+                            ':',
+                            {
+                                trackId: remoteParticipantTracks.video.id,
+                                hasTrackObject: !!videoTrackObj,
+                                trackType: videoTrackObj?.getType?.(),
+                            }
                         )
                     }
                     if (remoteParticipantTracks.audio) {
                         audioTrackObj = trackService.getRemoteTrack(
                             remoteParticipantTracks.audio.id
                         )
+                        console.log(
+                            '[MeetingPage] 🔊 Remote audio track for',
+                            participant.displayName,
+                            ':',
+                            {
+                                trackId: remoteParticipantTracks.audio.id,
+                                hasTrackObject: !!audioTrackObj,
+                                trackType: audioTrackObj?.getType?.(),
+                            }
+                        )
                     }
+                } else {
+                    console.log(
+                        '[MeetingPage] ⚠️ No tracks found for remote participant:',
+                        participant.displayName,
+                        participant.id
+                    )
                 }
             }
 

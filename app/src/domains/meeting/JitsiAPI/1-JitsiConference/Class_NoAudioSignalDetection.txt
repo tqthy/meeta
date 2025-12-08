@@ -1,0 +1,17 @@
+```plaintext
+**Class NoAudioSignalDetection** Detects absence of audio input on the currently selected track of the `TraceablePeerConnection`. The no-audio state must persist for a configured duration before the detection event is emitted.
+
+```csv
+Stt,Name,Type,Parameters and description,Description
+1,constructor,Constructor,"conference: JitsiConference (the conference instance creating the detector)",Create a new `NoAudioSignalDetection` instance. This class detects when no audio signal is present on the selected track [1, 3].
+2,addEventListener,Property,"eventName: string | symbol, listener: (...args: any[]) => void",Alias for `emitter.on(eventName, listener)`. Add an event listener [3, 4, 5].
+3,removeEventListener,Property,"eventName: string | symbol, listener: (...args: any[]) => void",Remove the specified listener from the listener array for the named event [4, 6, 7].
+```
+
+Events emitted by this class:
+- `DetectionEvents.AUDIO_INPUT_STATE_CHANGE`
+- `DetectionEvents.NO_AUDIO_INPUT`
+
+---
+Source: workspace reference files.
+```

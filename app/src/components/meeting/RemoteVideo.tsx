@@ -35,7 +35,18 @@ export function RemoteVideo({
     // Attach video track to the video element
     useEffect(() => {
         const videoElement = videoRef.current
-        if (!videoElement) return
+        if (!videoElement) {
+            console.log('[RemoteVideo] No video element ref for:', name)
+            return
+        }
+
+        console.log('[RemoteVideo] 📹 Video track effect triggered:', {
+            participant: name,
+            hasVideoTrack: !!videoTrack,
+            isVideoMuted,
+            trackId: videoTrack?.getId?.(),
+            trackType: videoTrack?.getType?.(),
+        })
 
         if (videoTrack && !isVideoMuted) {
             setIsLoading(true)
@@ -45,23 +56,42 @@ export function RemoteVideo({
                 // Get the MediaStream from the track
                 const stream = trackService.getMediaStream(videoTrack)
                 if (stream) {
+                    console.log('[RemoteVideo] ✅ Got video stream:', {
+                        participant: name,
+                        streamId: stream.id,
+                        trackCount: stream.getTracks().length,
+                        videoTracks: stream.getVideoTracks().length,
+                    })
                     videoElement.srcObject = stream
                     videoElement
                         .play()
                         .then(() => {
+                            console.log('[RemoteVideo] ▶️ Video playing:', name)
                             setHasVideoStream(true)
                             setIsLoading(false)
                         })
                         .catch((err) => {
                             // AbortError is expected when track changes rapidly
                             if (err.name === 'AbortError') {
+                                console.log(
+                                    '[RemoteVideo] ⚠️ Video play aborted (expected):',
+                                    name
+                                )
                                 return
                             }
-                            console.error('Failed to play remote video:', err)
+                            console.error(
+                                '[RemoteVideo] ❌ Failed to play remote video:',
+                                name,
+                                err
+                            )
                             setHasError(true)
                             setIsLoading(false)
                         })
                 } else {
+                    console.log(
+                        '[RemoteVideo] Using Jitsi attach fallback for:',
+                        name
+                    )
                     // Fallback to Jitsi attach method
                     trackService.attachTrack(videoTrack, videoElement)
                     setHasVideoStream(true)
@@ -81,34 +111,70 @@ export function RemoteVideo({
 
         return () => {
             if (videoTrack && videoElement) {
+                console.log(
+                    '[RemoteVideo] 🧹 Cleaning up video track for:',
+                    name
+                )
                 videoElement.srcObject = null
             }
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [videoTrack, isVideoMuted])
 
     // Attach audio track to the audio element
     useEffect(() => {
         const audioElement = audioRef.current
-        if (!audioElement) return
+        if (!audioElement) {
+            console.log('[RemoteVideo] No audio element ref for:', name)
+            return
+        }
+
+        console.log('[RemoteVideo] 🔊 Audio track effect triggered:', {
+            participant: name,
+            hasAudioTrack: !!audioTrack,
+            isAudioMuted,
+            trackId: audioTrack?.getId?.(),
+        })
 
         if (audioTrack && !isAudioMuted) {
             try {
                 const stream = trackService.getMediaStream(audioTrack)
                 if (stream) {
+                    console.log('[RemoteVideo] ✅ Got audio stream:', {
+                        participant: name,
+                        streamId: stream.id,
+                        audioTracks: stream.getAudioTracks().length,
+                    })
                     audioElement.srcObject = stream
                     audioElement.play().catch((err) => {
                         // AbortError is expected when track changes rapidly
                         if (err.name === 'AbortError') {
+                            console.log(
+                                '[RemoteVideo] ⚠️ Audio play aborted (expected):',
+                                name
+                            )
                             return
                         }
-                        console.error('Failed to play remote audio:', err)
+                        console.error(
+                            '[RemoteVideo] ❌ Failed to play remote audio:',
+                            name,
+                            err
+                        )
                     })
                 } else {
+                    console.log(
+                        '[RemoteVideo] Using Jitsi attach fallback for audio:',
+                        name
+                    )
                     // Fallback to Jitsi attach method
                     trackService.attachTrack(audioTrack, audioElement)
                 }
             } catch (error) {
-                console.error('Failed to attach remote audio track:', error)
+                console.error(
+                    '[RemoteVideo] ❌ Failed to attach remote audio track:',
+                    name,
+                    error
+                )
             }
         } else {
             audioElement.srcObject = null
@@ -116,9 +182,14 @@ export function RemoteVideo({
 
         return () => {
             if (audioTrack && audioElement) {
+                console.log(
+                    '[RemoteVideo] 🧹 Cleaning up audio track for:',
+                    name
+                )
                 audioElement.srcObject = null
             }
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [audioTrack, isAudioMuted])
 
     const showVideo = hasVideoStream && !isLoading && !hasError && !isVideoMuted

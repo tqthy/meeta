@@ -1,0 +1,75 @@
+```plaintext
+**Class RTC** Central RTC helper used by the Jitsi runtime. Provides peer connection management, local/remote track helpers, bridge-channel communication and utility static methods.
+
+The following lists constructors, properties and methods in CSV form:
+
+```csv
+Stt,Name,Type,Parameters and description,Description
+1,constructor,Constructor,"conference: any, options: {} (optional, default {})",Create a new RTC instance [2].
+2,_channel,Property,BridgeChannel,Bridge channel instance used for bridge communication [2].
+3,_channelOpenListener,Property,() => void,Listener invoked when the bridge channel opens [2].
+4,_forwardedSourcesChangeListener,Property,any,Listener for forwarded-sources changes [3].
+5,_receiverVideoConstraints,Property,any,Receiver video constraints state [3].
+6,conference,Property,any,Conference instance [3].
+7,localTracks,Property,any[],Local tracks attached to this RTC instance [3].
+8,options,Property,{},Options used by the RTC instance [3].
+9,peerConnections,Property,Map<number, TraceablePeerConnection>,Map of active `TraceablePeerConnection` instances [3].
+10,options,Static Property,{},Static `options` property [4].
+11,_removePeerConnection,Method,"traceablePeerConnection: TraceablePeerConnection",Remove a peer connection from this RTC instance. Returns true on success [4].
+12,addCancellableListener,Method,"eventName: string, listener: EventListener",Add a cancellable listener. Returns an unsubscribe function [5].
+13,addEventListener,Method,"eventId: string, handler: EventListener",Alias for the `on` method [5].
+14,addListener,Method,"eventName: string, listener: EventListener",Add a new event listener [6].
+15,addLocalTrack,Method,"track: any",Add a local track to RTC [6].
+16,closeBridgeChannel,Method,N/A,Close the currently open bridge channel [7].
+17,createPeerConnection,Method,"signaling: SignalingLayer, pcConfig: any, isP2P: boolean, options: {...}",Create a new `TraceablePeerConnection` [7-10].
+18,destroy,Method,N/A,Remove all listeners and stored state [10].
+19,emit,Method,"event: string, ...args: any[]",Emit an event [10, 11].
+20,getForwardedSources,Method,N/A,Return the list of forwarded sources [11].
+21,getLocalAudioTrack,Method,N/A,Return the local audio track [11].
+22,getLocalEndpointId,Method,N/A,Return the endpoint ID for the local user [11, 12].
+23,getLocalTracks,Method,"mediaType?: MediaType (optional: audio or video)",Return local tracks filtered by media type, or all tracks if no type is provided [12].
+24,getLocalVideoTrack,Method,N/A,Return the local video track [12].
+25,getLocalVideoTracks,Method,N/A,Return all local video tracks [13].
+26,getRemoteTracks,Method,"mediaType?: MediaType (optional: audio or video)",Return all known remote tracks [13].
+27,initializeBridgeChannel,Method,"peerconnection?: RTCPeerConnection, wsUrl?: string",Initialize the bridge channel [14].
+28,isInForwardedSources,Method,"sourceName: string",Indicate whether a source name is included in forwarded sources [14, 15].
+29,listenerCount,Method,"eventName?: string",Return the number of listeners for the specified event [15].
+30,off,Method,"eventId: string, handler?: EventListener",Remove an event listener [16].
+31,on,Method,"eventId: string, handler: EventListener",Attach a handler for events (e.g. 'participant joined') [16, 17].
+32,onCallEnded,Method,N/A,"Should be called when the current media session ends and after the PeerConnection has been closed" [17].
+33,once,Method,"eventId: string, handler: EventListener",Add a one-time listener for an event [17, 18].
+34,removeAllListeners,Method,N/A,Remove all listeners [18].
+35,removeEventListener,Method,"eventId: string, handler?: EventListener",Alias for the `off` method [18, 19].
+36,removeListener,Method,"eventName: string, listener: EventListener",Remove a listener [19].
+37,removeLocalTrack,Method,"track: any",Remove a local track [20].
+38,sendChannelMessage,Method,"to: string (recipient endpoint ID, '' for all), payload: any",Send a message via the bridge channel [20].
+39,sendEndpointStatsMessage,Method,"payload: any",Send local stats over the bridge channel [21].
+40,sendReceiverAudioSubscriptionMessage,Method,"message: any",Send a receiver-audio-subscription message [21, 22].
+41,sendSourceVideoType,Method,"sourceName: SourceName, videoType: BridgeVideoType",Send the track's video type information to the JVB [22].
+42,setAudioLevel,Method,"tpc: TraceablePeerConnection, ssrc: number, audioLevel: number, isLocal: boolean",Set the audio level [22, 23].
+43,setAudioMute,Method,N/A,Set mute on all attached local audio streams [23].
+44,setDesktopMute,Method,N/A,Set mute on all attached local desktop-sharing video streams [23].
+45,setDesktopSharingFrameRate,Method,"maxFps: number",Set the capture frame rate used for desktop tracks [24].
+46,setLastN,Method,"value: number (new lastN value, -1 for no limit)",Choose a new `lastN` value [24, 25].
+47,setReceiverVideoConstraints,Method,"constraints: any",Set the receiver video constraints [25].
+48,setVideoMute,Method,N/A,Set mute on all attached local video streams [25, 26].
+49,addListener,Static Method,"eventType: any, listener: any",Add a listener (static method) [26].
+50,attachMediaStream,Static Method,"elSelector: any, stream: any",Attach a MediaStream (static helper) [26].
+51,createLocalTracks,Static Method,"tracksInfo: any[]",Convert WebRTC MediaStreams into `JitsiLocalTrack` instances [26, 27].
+52,enumerateDevices,Static Method,"callback: Function (receives an array of devices)",Allow obtaining a list of available cameras/mics [27].
+53,getAudioOutputDevice,Static Method,N/A,"Return the ID of the audio output device currently used; '' for default" [27, 28].
+54,getCurrentlyAvailableMediaDevices,Static Method,N/A,Return the list of available media devices if already fetched [28].
+55,getEventDataForActiveDevice,Static Method,"device: any",Return event data for a device for stats reporting [28, 29].
+56,init,Static Method,"options?: {} (optional, default {})",Initialize (static method) [29].
+57,isDesktopSharingEnabled,Static Method,N/A,Return whether desktop sharing is enabled [29].
+58,isDeviceChangeAvailable,Static Method,"deviceType?: string (optional: 'input' or 'output')",Return true if device change is supported [29, 30].
+59,isWebRtcSupported,Static Method,N/A,Return whether the current environment supports WebRTC [30].
+60,obtainAudioAndVideoPermissions,Static Method,"options?: {cameraDeviceId?: string, devices?: any[], micDeviceId?: string, resolution?: string}",Create local MediaStreams. Returns a Promise resolving to new `JitsiTrack` instances [31, 32].
+61,removeListener,Static Method,"eventType: any, listener: any",Remove a listener (static method) [32].
+62,setAudioOutputDevice,Static Method,"deviceId: string (audiooutput device ID)",Set the current audio output device [32, 33].
+63,stopMediaStream,Static Method,"mediaStream: MediaStream (MediaStream to stop)",Stop a media stream [33].
+
+
+---
+Source: workspace reference files.
+```
