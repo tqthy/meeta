@@ -7,7 +7,7 @@
  */
 
 import prisma from '../../../../lib/prisma'
-import { ParticipantRole } from '../../../../app/generated/prisma'
+import { ParticipantRole, MeetingStatus } from '../../../../app/generated/prisma'
 import type {
     SerializableEvent,
     ParticipantJoinedPayload,
@@ -88,6 +88,40 @@ export const participantRecordService = {
             email: payload.email,
             role: payload.role || ParticipantRole.PARTICIPANT,
             joinedAt: new Date(payload.joinedAt),
+        }
+
+        // First, ensure the meeting exists
+        const meeting = await prisma.meeting.findUnique({
+            where: { id: dto.meetingId },
+            select: { id: true },
+        })
+
+        if (!meeting) {
+            // Create a minimal meeting record if it doesn't exist
+            // This can happen when events arrive out of order
+            // Generate a unique roomName: meetingId_randomNumber to ensure uniqueness
+            // while keeping it deterministic per meeting
+            const randomNumber = Math.random().toString(36).substring(2, 10)
+            const uniqueRoomName = `${dto.meetingId}_${randomNumber}`
+
+            try {
+                await prisma.meeting.create({
+                    data: {
+                        id: dto.meetingId,
+                        roomName: uniqueRoomName,
+                        title: `Meeting ${dto.meetingId.substring(0, 8)}`,
+                        status: MeetingStatus.ACTIVE,
+                        // hostId is optional, so we don't need to set it
+                    },
+                })
+            } catch (error: unknown) {
+                // If meeting already exists (race condition with another participant),
+                // just continue. This is fine - we only need it to exist.
+                const prismaError = error as { code?: string }
+                if (prismaError?.code !== 'P2002') {
+                    throw error
+                }
+            }
         }
 
         // Use upsert keyed by participantId for idempotency

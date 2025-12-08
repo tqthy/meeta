@@ -30,6 +30,8 @@ function toDeviceInfo(device: MediaDeviceInfo): DeviceInfo {
 
 /**
  * Enumerates all available media devices
+ * 
+ * @see JitsiAPI/3-JitsiMediaDevices/Class_JitsiMediaDevices.txt (method: enumerateDevices)
  */
 async function enumerateDevices(): Promise<{
     audioInput: DeviceInfo[]
@@ -38,45 +40,60 @@ async function enumerateDevices(): Promise<{
 }> {
     const JitsiMeetJS = await getJitsiMeetJS()
 
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         if (!JitsiMeetJS) {
-            // Fallback to native API
-            navigator.mediaDevices.enumerateDevices().then((devices) => {
-                resolve({
-                    audioInput: devices
-                        .filter((d) => d.kind === 'audioinput')
-                        .map(toDeviceInfo),
-                    audioOutput: devices
-                        .filter((d) => d.kind === 'audiooutput')
-                        .map(toDeviceInfo),
-                    videoInput: devices
-                        .filter((d) => d.kind === 'videoinput')
-                        .map(toDeviceInfo),
+            // Fallback to native API if Jitsi not available
+            navigator.mediaDevices.enumerateDevices()
+                .then((devices) => {
+                    resolve({
+                        audioInput: devices
+                            .filter((d) => d.kind === 'audioinput')
+                            .map(toDeviceInfo),
+                        audioOutput: devices
+                            .filter((d) => d.kind === 'audiooutput')
+                            .map(toDeviceInfo),
+                        videoInput: devices
+                            .filter((d) => d.kind === 'videoinput')
+                            .map(toDeviceInfo),
+                    })
                 })
-            })
+                .catch(reject)
             return
         }
 
-        JitsiMeetJS.mediaDevices.enumerateDevices(
-            (devices: MediaDeviceInfo[]) => {
-                resolve({
-                    audioInput: devices
-                        .filter((d) => d.kind === 'audioinput')
-                        .map(toDeviceInfo),
-                    audioOutput: devices
-                        .filter((d) => d.kind === 'audiooutput')
-                        .map(toDeviceInfo),
-                    videoInput: devices
-                        .filter((d) => d.kind === 'videoinput')
-                        .map(toDeviceInfo),
-                })
-            }
-        )
+        try {
+            // Use Jitsi's enumerateDevices with callback
+            JitsiMeetJS.mediaDevices.enumerateDevices(
+                (devices: MediaDeviceInfo[]) => {
+                    try {
+                        resolve({
+                            audioInput: devices
+                                .filter((d) => d.kind === 'audioinput')
+                                .map(toDeviceInfo),
+                            audioOutput: devices
+                                .filter((d) => d.kind === 'audiooutput')
+                                .map(toDeviceInfo),
+                            videoInput: devices
+                                .filter((d) => d.kind === 'videoinput')
+                                .map(toDeviceInfo),
+                        })
+                    } catch (error) {
+                        console.error('[deviceService] Error processing device list:', error)
+                        reject(error)
+                    }
+                }
+            )
+        } catch (error) {
+            console.error('[deviceService] Error calling enumerateDevices:', error)
+            reject(error)
+        }
     })
 }
 
 /**
  * Creates local audio and/or video tracks
+ * 
+ * @see JitsiAPI/4-JitsiMeetJS/Variable_JitsiMeetJS.txt (method: createLocalTracks)
  */
 async function createLocalTracks(options: {
     audio?: boolean | { deviceId?: string }
@@ -84,12 +101,13 @@ async function createLocalTracks(options: {
 }): Promise<any[]> {
     const JitsiMeetJS = await getJitsiMeetJS()
     if (!JitsiMeetJS) {
-        throw new Error('JitsiMeetJS not available')
+        throw new Error('JitsiMeetJS not available - cannot create local tracks')
     }
 
     const devices: string[] = []
     const constraints: any = {}
 
+    // Build device list and constraints per Jitsi API
     if (options.audio) {
         devices.push('audio')
         if (typeof options.audio === 'object' && options.audio.deviceId) {
@@ -110,21 +128,61 @@ async function createLocalTracks(options: {
     }
 
     if (devices.length === 0) {
+        console.warn('[deviceService] No devices requested for track creation')
         return []
     }
 
-    const tracks = await JitsiMeetJS.createLocalTracks({
-        devices,
-        ...constraints,
-    })
+    try {
+        console.log('[deviceService] Creating local tracks:', { devices, constraints })
 
-    // Store tracks for later retrieval
-    for (const track of tracks) {
-        const trackId = track.getId?.() || `${track.getType()}-${Date.now()}`
-        trackStorage.set(trackId, track)
+        const tracks = await JitsiMeetJS.createLocalTracks({
+            devices,
+            ...constraints,
+        })
+
+        if (!Array.isArray(tracks)) {
+            console.error('[deviceService] createLocalTracks did not return array')
+            return []
+        }
+
+        // Validate and store only valid JitsiLocalTrack objects
+        const validTracks = []
+        for (const track of tracks) {
+            try {
+                // Validate track has required methods per JitsiLocalTrack API
+                if (track &&
+                    typeof track.getId === 'function' &&
+                    typeof track.getType === 'function' &&
+                    typeof track.attach === 'function' &&
+                    typeof track.dispose === 'function') {
+
+                    const trackId = track.getId()
+                    const trackType = track.getType()
+
+                    if (!trackId || !trackType) {
+                        console.warn('[deviceService] Track missing id or type, skipping')
+                        continue
+                    }
+
+                    trackStorage.set(trackId, track)
+                    validTracks.push(track)
+                    console.log('[deviceService] Valid track created:', trackType, trackId)
+                } else {
+                    console.warn('[deviceService] Invalid track object - missing required methods')
+                }
+            } catch (error) {
+                console.warn('[deviceService] Error validating track:', error)
+            }
+        }
+
+        console.log('[deviceService] Created', validTracks.length, 'valid tracks')
+        return validTracks
+    } catch (error: any) {
+        console.error('[deviceService] Failed to create local tracks:', error)
+        // Provide more context about the error
+        const errorMessage = error?.message || error?.name || 'Unknown error'
+        throw new Error(`Failed to create local tracks: ${errorMessage}`)
     }
-
-    return tracks
 }
 
 /**
@@ -162,23 +220,52 @@ async function createVideoTrack(
 
 /**
  * Releases (disposes) a local track and stops the hardware
+ * 
+ * @see JitsiAPI/1-JitsiConference/Class_JitsiLocalTrack.txt (method: dispose)
+ * 
+ * Critical: Must properly dispose tracks to release camera/microphone access
  */
 async function releaseTrack(track: any): Promise<void> {
-    if (!track) return
+    if (!track) {
+        console.warn('[deviceService] Cannot release: track is null')
+        return
+    }
+
+    const trackId = track.getId?.()
+    const trackType = track.getType?.()
+
+    console.log('[deviceService] 🗑️ Releasing track:', { trackId, trackType })
 
     try {
-        // Stop the track to release hardware access
-        if (track.dispose) {
+        // Validate track has required methods before attempting disposal
+        if (typeof track.dispose === 'function') {
+            // dispose() is the proper way to stop JitsiLocalTrack
             await track.dispose()
+            console.log('[deviceService] ✅ Track disposed:', trackType)
+        } else if (typeof track.stop === 'function') {
+            // Fallback to stop() if dispose is not available
+            track.stop()
+            console.log('[deviceService] ✅ Track stopped (fallback):', trackType)
+        } else {
+            console.warn('[deviceService] Track has no dispose or stop method')
         }
 
         // Remove from storage
-        const trackId = track.getId?.()
         if (trackId) {
             trackStorage.delete(trackId)
         }
     } catch (error) {
-        console.error('Failed to release track:', error)
+        console.error('[deviceService] ❌ Failed to release track:', error)
+        // Don't rethrow - continue cleanup even if disposal fails
+        // Attempt to remove from storage anyway
+        try {
+            const trackId = track?.getId?.()
+            if (trackId) {
+                trackStorage.delete(trackId)
+            }
+        } catch (e) {
+            // Ignore cleanup errors
+        }
     }
 }
 

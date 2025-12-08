@@ -97,32 +97,42 @@ export function MeetingContainer({
                 </div>
                 {sidebarParticipants.length > 0 && (
                     <div className="grid grid-cols-4 gap-2 h-24">
-                        {sidebarParticipants.map((participant) => (
-                            <div key={participant.id}>
-                                {participant.isLocal ? (
-                                    <LocalVideo
-                                        name={participant.displayName}
-                                        isAudioMuted={participant.isAudioMuted}
-                                        isVideoMuted={participant.isVideoMuted}
-                                        videoTrack={participant.videoTrack}
-                                        imageUrl={participant.imageUrl}
-                                    />
-                                ) : (
-                                    <RemoteVideo
-                                        name={participant.displayName}
-                                        isAudioMuted={participant.isAudioMuted}
-                                        isVideoMuted={participant.isVideoMuted}
-                                        videoTrack={participant.videoTrack}
-                                        audioTrack={participant.audioTrack}
-                                        imageUrl={participant.imageUrl}
-                                        isDominantSpeaker={
-                                            dominantSpeakerId ===
-                                            String(participant.id)
-                                        }
-                                    />
-                                )}
-                            </div>
-                        ))}
+                        {sidebarParticipants.map((participant) => {
+                            return (
+                                <div key={participant.id}>
+                                    {participant.isLocal ? (
+                                        <LocalVideo
+                                            name={participant.displayName}
+                                            isAudioMuted={
+                                                participant.isAudioMuted
+                                            }
+                                            isVideoMuted={
+                                                participant.isVideoMuted
+                                            }
+                                            videoTrack={participant.videoTrack}
+                                            imageUrl={participant.imageUrl}
+                                        />
+                                    ) : (
+                                        <RemoteVideo
+                                            name={participant.displayName}
+                                            isAudioMuted={
+                                                participant.isAudioMuted
+                                            }
+                                            isVideoMuted={
+                                                participant.isVideoMuted
+                                            }
+                                            videoTrack={participant.videoTrack}
+                                            audioTrack={participant.audioTrack}
+                                            imageUrl={participant.imageUrl}
+                                            isDominantSpeaker={
+                                                dominantSpeakerId ===
+                                                String(participant.id)
+                                            }
+                                        />
+                                    )}
+                                </div>
+                            )
+                        })}
                     </div>
                 )}
             </div>
@@ -161,32 +171,42 @@ export function MeetingContainer({
                 </div>
                 {sidebarParticipants.length > 0 && (
                     <div className="w-64 flex flex-col gap-2 overflow-y-auto">
-                        {sidebarParticipants.map((participant) => (
-                            <div key={participant.id} className="h-40">
-                                {participant.isLocal ? (
-                                    <LocalVideo
-                                        name={participant.displayName}
-                                        isAudioMuted={participant.isAudioMuted}
-                                        isVideoMuted={participant.isVideoMuted}
-                                        videoTrack={participant.videoTrack}
-                                        imageUrl={participant.imageUrl}
-                                    />
-                                ) : (
-                                    <RemoteVideo
-                                        name={participant.displayName}
-                                        isAudioMuted={participant.isAudioMuted}
-                                        isVideoMuted={participant.isVideoMuted}
-                                        videoTrack={participant.videoTrack}
-                                        audioTrack={participant.audioTrack}
-                                        imageUrl={participant.imageUrl}
-                                        isDominantSpeaker={
-                                            dominantSpeakerId ===
-                                            String(participant.id)
-                                        }
-                                    />
-                                )}
-                            </div>
-                        ))}
+                        {sidebarParticipants.map((participant) => {
+                            return (
+                                <div key={participant.id} className="h-40">
+                                    {participant.isLocal ? (
+                                        <LocalVideo
+                                            name={participant.displayName}
+                                            isAudioMuted={
+                                                participant.isAudioMuted
+                                            }
+                                            isVideoMuted={
+                                                participant.isVideoMuted
+                                            }
+                                            videoTrack={participant.videoTrack}
+                                            imageUrl={participant.imageUrl}
+                                        />
+                                    ) : (
+                                        <RemoteVideo
+                                            name={participant.displayName}
+                                            isAudioMuted={
+                                                participant.isAudioMuted
+                                            }
+                                            isVideoMuted={
+                                                participant.isVideoMuted
+                                            }
+                                            videoTrack={participant.videoTrack}
+                                            audioTrack={participant.audioTrack}
+                                            imageUrl={participant.imageUrl}
+                                            isDominantSpeaker={
+                                                dominantSpeakerId ===
+                                                String(participant.id)
+                                            }
+                                        />
+                                    )}
+                                </div>
+                            )
+                        })}
                     </div>
                 )}
             </div>
@@ -203,31 +223,35 @@ export function MeetingContainer({
 
     return (
         <div className={`grid ${gridClasses[currentLayout]} gap-2 h-full`}>
-            {participants.map((participant) => (
-                <div key={participant.id}>
-                    {participant.isLocal ? (
-                        <LocalVideo
-                            name={participant.displayName}
-                            isAudioMuted={participant.isAudioMuted}
-                            isVideoMuted={participant.isVideoMuted}
-                            videoTrack={participant.videoTrack}
-                            imageUrl={participant.imageUrl}
-                        />
-                    ) : (
-                        <RemoteVideo
-                            name={participant.displayName}
-                            isAudioMuted={participant.isAudioMuted}
-                            isVideoMuted={participant.isVideoMuted}
-                            videoTrack={participant.videoTrack}
-                            audioTrack={participant.audioTrack}
-                            imageUrl={participant.imageUrl}
-                            isDominantSpeaker={
-                                dominantSpeakerId === String(participant.id)
-                            }
-                        />
-                    )}
-                </div>
-            ))}
+            {participants.map((participant) => {
+                // Use participant ID as key to maintain component identity
+                // Track changes are handled internally by RemoteVideo via useEffect
+                return (
+                    <div key={participant.id}>
+                        {participant.isLocal ? (
+                            <LocalVideo
+                                name={participant.displayName}
+                                isAudioMuted={participant.isAudioMuted}
+                                isVideoMuted={participant.isVideoMuted}
+                                videoTrack={participant.videoTrack}
+                                imageUrl={participant.imageUrl}
+                            />
+                        ) : (
+                            <RemoteVideo
+                                name={participant.displayName}
+                                isAudioMuted={participant.isAudioMuted}
+                                isVideoMuted={participant.isVideoMuted}
+                                videoTrack={participant.videoTrack}
+                                audioTrack={participant.audioTrack}
+                                imageUrl={participant.imageUrl}
+                                isDominantSpeaker={
+                                    dominantSpeakerId === String(participant.id)
+                                }
+                            />
+                        )}
+                    </div>
+                )
+            })}
         </div>
     )
 }

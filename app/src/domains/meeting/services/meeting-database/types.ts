@@ -114,6 +114,81 @@ export interface TrackRemovedPayload {
 }
 
 // ============================================================================
+// Media/Audio-Video Event Payloads
+// ============================================================================
+
+export interface AudioMuteChangedPayload {
+    meetingId: string
+    participantId: string
+    muted: boolean
+    timestamp: string
+}
+
+export interface VideoMuteChangedPayload {
+    meetingId: string
+    participantId: string
+    muted: boolean
+    timestamp: string
+}
+
+export interface ScreenShareStatusChangedPayload {
+    meetingId: string
+    participantId: string
+    on: boolean
+    sourceType?: string // 'window' | 'screen' | 'proxy' | 'device' | undefined
+    timestamp: string
+}
+
+export interface DominantSpeakerChangedPayload {
+    meetingId: string
+    participantId: string
+    timestamp: string
+}
+
+export interface DisplayNameChangedPayload {
+    meetingId: string
+    participantId: string
+    displayName: string
+    timestamp: string
+}
+
+export interface RaiseHandUpdated {
+    meetingId: string
+    participantId: string
+    handRaised: number // 0 when lowered, or timestamp when raised
+    timestamp: string
+}
+
+export interface RecordingStatusChangedPayload {
+    meetingId: string
+    on: boolean
+    mode: string // 'local' | 'stream' | 'file'
+    error?: string
+    transcription: boolean
+    timestamp: string
+}
+
+export interface TranscribingStatusChangedPayload {
+    meetingId: string
+    on: boolean
+    timestamp: string
+}
+
+export interface TranscriptionChunkReceivedPayload {
+    meetingId: string
+    language: string
+    messageID: string
+    participant: {
+        id: string
+        displayName: string
+    }
+    final: string
+    stable: string
+    unstable: string
+    timestamp: string
+}
+
+// ============================================================================
 // Event Type Unions
 // ============================================================================
 
@@ -132,7 +207,19 @@ export type TrackEvent =
     | SerializableEvent<'track.added', TrackAddedPayload>
     | SerializableEvent<'track.removed', TrackRemovedPayload>
 
-export type MeetingDatabaseEvent = MeetingEvent | ParticipantEvent | TrackEvent
+export type MediaEvent =
+    | SerializableEvent<'audio.mute.changed', AudioMuteChangedPayload>
+    | SerializableEvent<'video.mute.changed', VideoMuteChangedPayload>
+    | SerializableEvent<'screen.share.started', ScreenShareStatusChangedPayload>
+    | SerializableEvent<'screen.share.stopped', ScreenShareStatusChangedPayload>
+    | SerializableEvent<'dominant.speaker.changed', DominantSpeakerChangedPayload>
+    | SerializableEvent<'display.name.changed', DisplayNameChangedPayload>
+    | SerializableEvent<'raise.hand.updated', RaiseHandUpdated>
+    | SerializableEvent<'recording.status.changed', RecordingStatusChangedPayload>
+    | SerializableEvent<'transcription.status.changed', TranscribingStatusChangedPayload>
+    | SerializableEvent<'transcription.chunk.received', TranscriptionChunkReceivedPayload>
+
+export type MeetingDatabaseEvent = MeetingEvent | ParticipantEvent | TrackEvent | MediaEvent
 
 // ============================================================================
 // DTOs for Prisma Mapping
@@ -240,6 +327,22 @@ export function isParticipantEvent(event: SerializableEvent): event is Participa
  */
 export function isTrackEvent(event: SerializableEvent): event is TrackEvent {
     return event.type.startsWith('track.')
+}
+
+/**
+ * Type guard for MediaEvent
+ */
+export function isMediaEvent(event: SerializableEvent): event is MediaEvent {
+    return (
+        event.type.startsWith('audio.') ||
+        event.type.startsWith('video.') ||
+        event.type.startsWith('screen.') ||
+        event.type.startsWith('dominant.') ||
+        event.type.startsWith('display.') ||
+        event.type.startsWith('raise.') ||
+        event.type.startsWith('recording.') ||
+        event.type.startsWith('transcription.')
+    )
 }
 
 /**

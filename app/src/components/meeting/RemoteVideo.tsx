@@ -4,7 +4,6 @@ import React, { useRef, useEffect, useState } from 'react'
 import { Loader } from 'lucide-react'
 import { VideoPlaceholder } from './video-tile/VideoPlaceholder'
 import { StatusIndicators } from './video-tile/StatusIndicators'
-import { trackService } from '@/domains/meeting/services'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 interface RemoteVideoProps {
@@ -17,7 +16,14 @@ interface RemoteVideoProps {
     isDominantSpeaker?: boolean
 }
 
-export function RemoteVideo({
+/**
+ * RemoteVideo Component - Simplified Approach
+ *
+ * Strategy: Use Jitsi's built-in attach() method directly.
+ * Let Jitsi SDK handle all MediaStream management internally.
+ * This is more reliable for P2P↔SFU transitions.
+ */
+function RemoteVideoComponent({
     name,
     isAudioMuted = true,
     isVideoMuted = true,
@@ -29,170 +35,128 @@ export function RemoteVideo({
     const videoRef = useRef<HTMLVideoElement>(null)
     const audioRef = useRef<HTMLAudioElement>(null)
     const [isLoading, setIsLoading] = useState(false)
-    const [hasError, setHasError] = useState(false)
     const [hasVideoStream, setHasVideoStream] = useState(false)
 
-    // Attach video track to the video element
+    // Track what's currently attached to avoid duplicate attachments
+    const attachedVideoTrack = useRef<any>(null)
+    const attachedAudioTrack = useRef<any>(null)
+
+    // Attach video track using Jitsi's built-in attach() method
     useEffect(() => {
         const videoElement = videoRef.current
-        if (!videoElement) {
-            console.log('[RemoteVideo] No video element ref for:', name)
+        if (!videoElement || !videoTrack) {
+            setHasVideoStream(false)
             return
         }
 
-        console.log('[RemoteVideo] 📹 Video track effect triggered:', {
+        // Check if this is the same track already attached
+        if (attachedVideoTrack.current === videoTrack) {
+            return // Already attached, no action needed
+        }
+
+        console.log('[RemoteVideo] 📹 Attaching video track:', {
             participant: name,
-            hasVideoTrack: !!videoTrack,
-            isVideoMuted,
-            trackId: videoTrack?.getId?.(),
-            trackType: videoTrack?.getType?.(),
+            trackId: videoTrack.getId?.(),
+            participantId: videoTrack.getParticipantId?.(),
         })
 
-        if (videoTrack && !isVideoMuted) {
-            setIsLoading(true)
-            setHasError(false)
+        setIsLoading(true)
 
-            try {
-                // Get the MediaStream from the track
-                const stream = trackService.getMediaStream(videoTrack)
-                if (stream) {
-                    console.log('[RemoteVideo] ✅ Got video stream:', {
-                        participant: name,
-                        streamId: stream.id,
-                        trackCount: stream.getTracks().length,
-                        videoTracks: stream.getVideoTracks().length,
-                    })
-                    videoElement.srcObject = stream
-                    videoElement
-                        .play()
-                        .then(() => {
-                            console.log('[RemoteVideo] ▶️ Video playing:', name)
-                            setHasVideoStream(true)
-                            setIsLoading(false)
-                        })
-                        .catch((err) => {
-                            // AbortError is expected when track changes rapidly
-                            if (err.name === 'AbortError') {
-                                console.log(
-                                    '[RemoteVideo] ⚠️ Video play aborted (expected):',
-                                    name
-                                )
-                                return
-                            }
-                            console.error(
-                                '[RemoteVideo] ❌ Failed to play remote video:',
-                                name,
-                                err
-                            )
-                            setHasError(true)
-                            setIsLoading(false)
-                        })
-                } else {
-                    console.log(
-                        '[RemoteVideo] Using Jitsi attach fallback for:',
-                        name
-                    )
-                    // Fallback to Jitsi attach method
-                    trackService.attachTrack(videoTrack, videoElement)
-                    setHasVideoStream(true)
-                    setIsLoading(false)
-                }
-            } catch (error) {
-                console.error('Failed to attach remote video track:', error)
-                setHasError(true)
+        try {
+            // Detach previous track if exists
+            if (
+                attachedVideoTrack.current &&
+                typeof attachedVideoTrack.current.detach === 'function'
+            ) {
+                console.log('[RemoteVideo] Detaching old video track')
+                attachedVideoTrack.current.detach(videoElement)
+            }
+
+            // Attach new track using Jitsi's method
+            if (typeof videoTrack.attach === 'function') {
+                videoTrack.attach(videoElement)
+                attachedVideoTrack.current = videoTrack
+                setHasVideoStream(true)
+                setIsLoading(false)
+                console.log('[RemoteVideo] ✅ Video track attached')
+            } else {
+                console.error('[RemoteVideo] Track does not have attach method')
                 setIsLoading(false)
             }
-        } else {
-            // No video track or muted - clear the video
-            videoElement.srcObject = null
-            setHasVideoStream(false)
+        } catch (error) {
+            console.error('[RemoteVideo] Error attaching video track:', error)
             setIsLoading(false)
         }
 
         return () => {
-            if (videoTrack && videoElement) {
-                console.log(
-                    '[RemoteVideo] 🧹 Cleaning up video track for:',
-                    name
-                )
-                videoElement.srcObject = null
+            console.log('[RemoteVideo] 🧹 Cleaning up video track:', name)
+            if (
+                attachedVideoTrack.current &&
+                videoElement &&
+                typeof attachedVideoTrack.current.detach === 'function'
+            ) {
+                attachedVideoTrack.current.detach(videoElement)
+                attachedVideoTrack.current = null
             }
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [videoTrack, isVideoMuted])
+    }, [videoTrack, name]) // Handle video mute state (show/hide video)
+    useEffect(() => {
+        setHasVideoStream(!isVideoMuted && !!videoTrack)
+    }, [isVideoMuted, videoTrack])
 
-    // Attach audio track to the audio element
+    // Attach audio track using Jitsi's built-in attach() method
     useEffect(() => {
         const audioElement = audioRef.current
-        if (!audioElement) {
-            console.log('[RemoteVideo] No audio element ref for:', name)
+        if (!audioElement || !audioTrack) {
             return
         }
 
-        console.log('[RemoteVideo] 🔊 Audio track effect triggered:', {
+        // Check if this is the same track already attached
+        if (attachedAudioTrack.current === audioTrack) {
+            return // Already attached, no action needed
+        }
+
+        console.log('[RemoteVideo] 🔊 Attaching audio track:', {
             participant: name,
-            hasAudioTrack: !!audioTrack,
-            isAudioMuted,
-            trackId: audioTrack?.getId?.(),
+            trackId: audioTrack.getId?.(),
         })
 
-        if (audioTrack && !isAudioMuted) {
-            try {
-                const stream = trackService.getMediaStream(audioTrack)
-                if (stream) {
-                    console.log('[RemoteVideo] ✅ Got audio stream:', {
-                        participant: name,
-                        streamId: stream.id,
-                        audioTracks: stream.getAudioTracks().length,
-                    })
-                    audioElement.srcObject = stream
-                    audioElement.play().catch((err) => {
-                        // AbortError is expected when track changes rapidly
-                        if (err.name === 'AbortError') {
-                            console.log(
-                                '[RemoteVideo] ⚠️ Audio play aborted (expected):',
-                                name
-                            )
-                            return
-                        }
-                        console.error(
-                            '[RemoteVideo] ❌ Failed to play remote audio:',
-                            name,
-                            err
-                        )
-                    })
-                } else {
-                    console.log(
-                        '[RemoteVideo] Using Jitsi attach fallback for audio:',
-                        name
-                    )
-                    // Fallback to Jitsi attach method
-                    trackService.attachTrack(audioTrack, audioElement)
-                }
-            } catch (error) {
-                console.error(
-                    '[RemoteVideo] ❌ Failed to attach remote audio track:',
-                    name,
-                    error
-                )
+        try {
+            // Detach previous track if exists
+            if (
+                attachedAudioTrack.current &&
+                typeof attachedAudioTrack.current.detach === 'function'
+            ) {
+                console.log('[RemoteVideo] Detaching old audio track')
+                attachedAudioTrack.current.detach(audioElement)
             }
-        } else {
-            audioElement.srcObject = null
+
+            // Attach new track using Jitsi's method
+            if (typeof audioTrack.attach === 'function') {
+                audioTrack.attach(audioElement)
+                attachedAudioTrack.current = audioTrack
+                console.log('[RemoteVideo] ✅ Audio track attached')
+            } else {
+                console.error('[RemoteVideo] Track does not have attach method')
+            }
+        } catch (error) {
+            console.error('[RemoteVideo] Error attaching audio track:', error)
         }
 
         return () => {
-            if (audioTrack && audioElement) {
-                console.log(
-                    '[RemoteVideo] 🧹 Cleaning up audio track for:',
-                    name
-                )
-                audioElement.srcObject = null
+            console.log('[RemoteVideo] 🧹 Cleaning up audio track:', name)
+            if (
+                attachedAudioTrack.current &&
+                audioElement &&
+                typeof attachedAudioTrack.current.detach === 'function'
+            ) {
+                attachedAudioTrack.current.detach(audioElement)
+                attachedAudioTrack.current = null
             }
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [audioTrack, isAudioMuted])
+    }, [audioTrack, name])
 
-    const showVideo = hasVideoStream && !isLoading && !hasError && !isVideoMuted
+    const showVideo = hasVideoStream && !isLoading
 
     return (
         <div
@@ -204,6 +168,7 @@ export function RemoteVideo({
                 ref={videoRef}
                 autoPlay
                 playsInline
+                muted
                 className={`w-full h-full object-cover ${
                     showVideo ? 'block' : 'hidden'
                 }`}
@@ -218,7 +183,7 @@ export function RemoteVideo({
                 isVisible={!showVideo && !isLoading}
             />
 
-            {isLoading && !hasError && (
+            {isLoading && (
                 <div className="absolute inset-0 bg-gray-900 flex items-center justify-center">
                     <Loader className="w-8 h-8 text-blue-500 animate-spin" />
                 </div>
@@ -242,3 +207,20 @@ export function RemoteVideo({
         </div>
     )
 }
+
+// Memoize component - re-render only when props actually change
+export const RemoteVideo = React.memo(
+    RemoteVideoComponent,
+    (prevProps, nextProps) => {
+        // Compare track object references (not IDs)
+        // Jitsi provides new objects during P2P↔SFU transitions
+        return (
+            prevProps.videoTrack === nextProps.videoTrack &&
+            prevProps.audioTrack === nextProps.audioTrack &&
+            prevProps.isVideoMuted === nextProps.isVideoMuted &&
+            prevProps.isAudioMuted === nextProps.isAudioMuted &&
+            prevProps.name === nextProps.name &&
+            prevProps.isDominantSpeaker === nextProps.isDominantSpeaker
+        )
+    }
+)

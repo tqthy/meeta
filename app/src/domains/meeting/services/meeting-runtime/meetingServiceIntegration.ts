@@ -16,7 +16,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { meetingService } from './meetingService'
+import { meetingService, setCurrentMeetingId } from './meetingService'
 import { meetingEventEmitter } from '../meetingEventEmitter'
 import type { MeetingConfig } from '../../types/meeting'
 
@@ -44,6 +44,9 @@ export const integratedMeetingService = {
         currentMeetingId = meetingId
         currentUserId = userId
 
+        // Set the current meeting ID in meetingService for event emission
+        setCurrentMeetingId(meetingId)
+
         try {
             await meetingService.connect(config)
 
@@ -62,6 +65,7 @@ export const integratedMeetingService = {
         } catch (error) {
             currentMeetingId = null
             currentUserId = null
+            setCurrentMeetingId('')
             console.error(
                 `[integratedMeetingService] Connection failed after ${Date.now() - startTime}ms:`,
                 error
@@ -214,6 +218,8 @@ export const integratedMeetingService = {
     clearEventHandlers: () => meetingService.clearEventHandlers(),
     extractParticipantData: (participant: any, isLocal?: boolean) =>
         meetingService.extractParticipantData(participant, isLocal),
+    getRemoteTracksSnapshot: () => meetingService.getRemoteTracksSnapshot(),
+    getConnectionStatus: () => meetingService.getConnectionStatus(),
 }
 
 /**

@@ -16,7 +16,7 @@ enum ParticipantRole {
 
 model Meeting {
   id          String  @id @default(cuid())
-  roomName    String  @unique // Jitsi room identifier
+  roomName    String  
   title       String
   description String?
 
@@ -29,9 +29,9 @@ model Meeting {
   // Status
   status MeetingStatus @default(SCHEDULED)
 
-  // Host
-  hostId String
-  host   user   @relation("MeetingHost", fields: [hostId], references: [id])
+  // Host (nullable for events from non-authenticated sources)
+  hostId String?
+  host   user?   @relation("MeetingHost", fields: [hostId], references: [id])
 
   // Relations
   participants MeetingParticipant[]

@@ -1,6 +1,6 @@
 **Title:** `EventListener` (Jitsi Meet SDK events)
 
-**Purpose:** Catalog of events emitted by Jitsi Meet (web SDK / iframe API) with descriptions of the callback object. This file provides a quick reference for event names, the shape of the listener argument, and the meaning of each event.
+**Purpose:** Catalog of events emitted by Jitsi Meet (web SDK / iframe API) with descriptions of the callback object. These events can be listened to via `api.addListener(event, listener)`. This file provides a quick reference for event names, the shape of the listener argument, and the meaning of each event.
 
 **Members (CSV)**
 ```csv

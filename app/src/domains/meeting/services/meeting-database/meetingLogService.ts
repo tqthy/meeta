@@ -13,7 +13,7 @@ import type {
     EventProcessingResult,
     MeetingDatabaseEvent,
 } from './types'
-import { isMeetingEvent, isParticipantEvent, isTrackEvent } from './types'
+import { isMeetingEvent, isParticipantEvent, isTrackEvent, isMediaEvent } from './types'
 import { meetingRecordService } from './meetingRecordService'
 import { participantRecordService } from './participantRecordService'
 
@@ -92,6 +92,15 @@ export const meetingLogService = {
                 result = await participantRecordService.handleEvent(event)
             } else if (isTrackEvent(event)) {
                 // Track events are typically just logged, not processed further
+                result = {
+                    success: true,
+                    eventId: event.eventId,
+                    eventType: event.type,
+                }
+            } else if (isMediaEvent(event)) {
+                // Media events (audio/video mute, screen share, etc.) are logged but not processed further
+                // They can be used for analytics and audit trails
+                console.log(`[meetingLogService] Media event recorded: ${event.type}`)
                 result = {
                     success: true,
                     eventId: event.eventId,

@@ -181,12 +181,18 @@ export function useLocalTracks(options: UseLocalTracksOptions = {}) {
      * Toggles audio on/off
      */
     const toggleAudio = useCallback(async () => {
-        if (isAudioEnabled) {
+        // Use track ref to determine current state, not local state
+        // This prevents stale state issues when toggles happen rapidly
+        const hasActiveTrack = audioTrackRef.current &&
+            typeof audioTrackRef.current.isEnded === 'function' &&
+            !audioTrackRef.current.isEnded()
+
+        if (hasActiveTrack) {
             await disableAudio()
         } else {
             await enableAudio()
         }
-    }, [isAudioEnabled, enableAudio, disableAudio])
+    }, [enableAudio, disableAudio])
 
     /**
      * Mutes the audio track without releasing it
@@ -333,12 +339,18 @@ export function useLocalTracks(options: UseLocalTracksOptions = {}) {
      * Toggles video on/off
      */
     const toggleVideo = useCallback(async () => {
-        if (isVideoEnabled) {
+        // Use track ref to determine current state, not local state
+        // This prevents stale state issues when toggles happen rapidly
+        const hasActiveTrack = videoTrackRef.current &&
+            typeof videoTrackRef.current.isEnded === 'function' &&
+            !videoTrackRef.current.isEnded()
+
+        if (hasActiveTrack) {
             await disableVideo()
         } else {
             await enableVideo()
         }
-    }, [isVideoEnabled, enableVideo, disableVideo])
+    }, [enableVideo, disableVideo])
 
     /**
      * Mutes the video track without releasing it
@@ -454,17 +466,34 @@ export function useLocalTracks(options: UseLocalTracksOptions = {}) {
         enableVideo,
     ])
 
-    // Cleanup on unmount
+    // Cleanup on unmount - CRITICAL for releasing device access
+    // This ONLY runs when the hook is actually unmounted (meeting page closes)
+    // NOT when parent components re-render
     useEffect(() => {
-        return () => {
+        const cleanup = () => {
+            console.log('[useLocalTracks] 🧹 Component unmounting - releasing tracks')
             // Release tracks when component unmounts
-            if (audioTrackRef.current) {
-                deviceService.releaseTrack(audioTrackRef.current)
+            const audioTrack = audioTrackRef.current
+            const videoTrack = videoTrackRef.current
+
+            if (audioTrack) {
+                console.log('[useLocalTracks] Releasing audio track')
+                deviceService.releaseTrack(audioTrack).catch(err => {
+                    console.error('[useLocalTracks] Error releasing audio track:', err)
+                })
+                audioTrackRef.current = null
             }
-            if (videoTrackRef.current) {
-                deviceService.releaseTrack(videoTrackRef.current)
+            if (videoTrack) {
+                console.log('[useLocalTracks] Releasing video track')
+                deviceService.releaseTrack(videoTrack).catch(err => {
+                    console.error('[useLocalTracks] Error releasing video track:', err)
+                })
+                videoTrackRef.current = null
             }
         }
+
+        // Return cleanup function that will ONLY run on unmount
+        return cleanup
     }, [])
 
     return {
