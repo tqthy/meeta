@@ -139,6 +139,29 @@ export default function MeetingPage() {
         localTracks.isVideoEnabled,
     ])
 
+    // CRITICAL: Cleanup on page unmount (user navigates away)
+    // This ensures device access is released even if user doesn't click Leave
+    // Use ref to avoid dependency on meeting object which changes frequently
+    const meetingRef = React.useRef(meeting)
+    meetingRef.current = meeting
+
+    useEffect(() => {
+        // This cleanup ONLY runs when the component actually unmounts (page navigation)
+        return () => {
+            console.log(
+                '[MeetingPage] 🧹 Page unmounting - cleaning up meeting'
+            )
+            // Use ref to access latest meeting object without causing re-runs
+            meetingRef.current.leaveMeeting().catch((err) => {
+                console.error(
+                    '[MeetingPage] Error during unmount cleanup:',
+                    err
+                )
+            })
+        }
+        // Empty dependency array = only runs on actual mount/unmount
+    }, [])
+
     // Media control handlers
     const handleToggleMic = useCallback(async () => {
         if (localTracks.isAudioEnabled) {
@@ -167,34 +190,41 @@ export default function MeetingPage() {
     ])
 
     const handleLeave = useCallback(async () => {
-        // Note: Event emission (participant left, meeting ended) now handled by integratedMeetingService
+        console.log('[MeetingPage] 🚪 Leave button clicked')
 
-        // Flush any pending events before leaving
-        if (userId) {
-            await flushEvents()
+        try {
+            // Flush any pending events before leaving
+            if (userId) {
+                await flushEvents()
+            }
+
+            // Leave the meeting (this will release tracks and disconnect)
+            await meeting.leaveMeeting()
+
+            // Navigate back
+            router.push('/dashboard')
+        } catch (error) {
+            console.error('[MeetingPage] Error during leave:', error)
+            // Still navigate away even on error
+            router.push('/dashboard')
         }
-
-        // Release all tracks first
-        await localTracks.releaseAllTracks()
-
-        // Leave the meeting
-        await meeting.leaveMeeting()
-
-        // Navigate back
-        router.push('/dashboard')
-    }, [localTracks, meeting, router, flushEvents, userId])
+    }, [meeting, router, flushEvents, userId])
 
     const handleLayoutChange = useCallback((layout: LayoutType) => {
         setCurrentLayout(layout)
     }, [])
 
     // Build participants list for UI
+    // Note: This will rebuild on participant mute changes, which is intentional
+    // The key optimization is that RemoteVideo component now handles mute changes
+    // without recreating streams, so re-renders are cheap
     const allParticipants = useMemo(() => {
         const participantList: any[] = []
 
         console.log('[MeetingPage] 🔄 Building participants list:', {
             totalParticipants: meeting.participantList.length,
-            tracksByParticipant: Object.keys(remoteTracks.tracksByParticipant),
+            tracksByParticipant: Object.keys(remoteTracks.tracksByParticipant)
+                .length,
         })
 
         // Add all participants from meeting state
@@ -204,45 +234,47 @@ export default function MeetingPage() {
 
             if (participant.isLocal) {
                 videoTrackObj = localTracks.getVideoTrack()
-                // Local audio is not attached to video element
-                console.log('[MeetingPage] 📍 Local participant:', {
-                    id: participant.id,
-                    hasVideoTrack: !!videoTrackObj,
-                })
             } else {
                 const remoteParticipantTracks =
                     remoteTracks.tracksByParticipant[participant.id]
-
-                console.log('[MeetingPage] 👥 Remote participant:', {
-                    id: participant.id,
-                    displayName: participant.displayName,
-                    hasTracks: !!remoteParticipantTracks,
-                    tracks: remoteParticipantTracks,
-                })
 
                 if (remoteParticipantTracks) {
                     if (remoteParticipantTracks.video) {
                         videoTrackObj = trackService.getRemoteTrack(
                             remoteParticipantTracks.video.id
                         )
-                        console.log('[MeetingPage] Retrieved video track:', {
-                            participantId: participant.id,
-                            trackId: remoteParticipantTracks.video.id,
-                            trackObj: !!videoTrackObj,
-                            isMuted: remoteParticipantTracks.video.isMuted,
-                        })
+                        console.log(
+                            '[MeetingPage] 📹 Remote video track for',
+                            participant.displayName,
+                            ':',
+                            {
+                                trackId: remoteParticipantTracks.video.id,
+                                hasTrackObject: !!videoTrackObj,
+                                trackType: videoTrackObj?.getType?.(),
+                            }
+                        )
                     }
                     if (remoteParticipantTracks.audio) {
                         audioTrackObj = trackService.getRemoteTrack(
                             remoteParticipantTracks.audio.id
                         )
-                        console.log('[MeetingPage] Retrieved audio track:', {
-                            participantId: participant.id,
-                            trackId: remoteParticipantTracks.audio.id,
-                            trackObj: !!audioTrackObj,
-                            isMuted: remoteParticipantTracks.audio.isMuted,
-                        })
+                        console.log(
+                            '[MeetingPage] 🔊 Remote audio track for',
+                            participant.displayName,
+                            ':',
+                            {
+                                trackId: remoteParticipantTracks.audio.id,
+                                hasTrackObject: !!audioTrackObj,
+                                trackType: audioTrackObj?.getType?.(),
+                            }
+                        )
                     }
+                } else {
+                    console.log(
+                        '[MeetingPage] ⚠️ No tracks found for remote participant:',
+                        participant.displayName,
+                        participant.id
+                    )
                 }
             }
 

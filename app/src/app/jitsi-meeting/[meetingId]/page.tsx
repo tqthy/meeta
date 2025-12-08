@@ -17,7 +17,7 @@ export default function JitsiMeetingPage() {
     useEffect(() => {
         if (!meetingId) {
             // If no meeting id present, redirect to create page
-            router.replace('/jitsi-meeting/create')
+            router.replace('/dashboard')
         }
     }, [meetingId, router])
 
