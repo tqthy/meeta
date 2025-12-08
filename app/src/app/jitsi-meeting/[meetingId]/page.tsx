@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { JitsiMeeting } from '@jitsi/react-sdk'
 import { useParams, useRouter } from 'next/navigation'
+import { useSession } from '@/lib/auth-client'
 import { useEventPersistence } from '@/domains/meeting/hooks/useEventPersistence'
 import { meetingEventEmitter } from '@/domains/meeting/services/meetingEventEmitter'
 import type {
@@ -28,9 +29,12 @@ export default function JitsiMeetingPage() {
     const params = useParams()
     const router = useRouter()
     const meetingId = (params as { meetingId?: string })?.meetingId || ''
+    const { data: session } = useSession()
 
     const [displayName] = useState(
-        () => `Guest-${Math.random().toString(36).slice(2, 8)}`
+        () =>
+            session?.user?.name ||
+            `Guest-${Math.random().toString(36).slice(2, 8)}`
     )
 
     // Reference to track if meeting has started
@@ -83,7 +87,7 @@ export default function JitsiMeetingPage() {
                     meetingEventEmitter.emitMeetingStarted({
                         meetingId,
                         roomName: event.roomName || meetingId,
-                        hostUserId: event.id, // Use local participant ID as host
+                        hostUserId: session?.user?.id || event.id, // Use authenticated userId or fallback to participant ID
                         title: `Meeting ${meetingId}`,
                         startedAt: getISOTimestamp(),
                     })
@@ -93,8 +97,11 @@ export default function JitsiMeetingPage() {
                 meetingEventEmitter.emitParticipantJoined({
                     meetingId,
                     participantId: event.id,
+                    userId: session?.user?.id, // Pass authenticated userId
                     displayName: event.displayName || displayName,
-                    email: `${displayName.replace(/\s+/g, '').toLowerCase()}@example.com`,
+                    email:
+                        session?.user?.email ||
+                        `${displayName.replace(/\s+/g, '').toLowerCase()}@example.com`,
                     role: 'HOST', // Local participant is host
                     joinedAt: getISOTimestamp(),
                 })
@@ -139,6 +146,7 @@ export default function JitsiMeetingPage() {
                 meetingEventEmitter.emitParticipantJoined({
                     meetingId,
                     participantId: event.id,
+                    userId: undefined, // Remote participants userId not available in iframe
                     displayName: event.displayName || 'Guest',
                     role: 'PARTICIPANT',
                     joinedAt: getISOTimestamp(),

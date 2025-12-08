@@ -164,3 +164,116 @@ export function useMeetingData(meetingId: string | null | undefined, options?: S
         },
     }
 }
+
+// ============================================================================
+// User Meeting History
+// ============================================================================
+
+export interface MeetingHistoryItem {
+    id: string
+    roomName: string
+    title: string
+    description?: string
+    status: 'ACTIVE' | 'ENDED' | 'SCHEDULED' | 'CANCELLED'
+    scheduledAt?: string
+    startedAt?: string
+    endedAt?: string
+    duration?: number
+    hostId?: string
+    host?: {
+        id: string
+        name?: string
+        email?: string
+        image?: string
+    }
+    participantCount: number
+    userRole: 'HOST' | 'CO_HOST' | 'PARTICIPANT'
+    joinedAt?: string
+    leftAt?: string
+    createdAt: string
+}
+
+export interface MeetingHistoryResponse {
+    userId: string
+    count: number
+    meetings: MeetingHistoryItem[]
+    filters: {
+        status: string
+        role: string
+        limit: number
+        offset: number
+    }
+}
+
+export interface UserMeetingStats {
+    totalMeetings: number
+    hostedMeetings: number
+    participatedMeetings: number
+    activeMeetings: number
+    scheduledMeetings: number
+}
+
+export interface UserStatsResponse {
+    userId: string
+    stats: UserMeetingStats
+}
+
+export interface MeetingHistoryFilters {
+    status?: 'ACTIVE' | 'ENDED' | 'SCHEDULED' | 'CANCELLED'
+    role?: 'host' | 'participant' | 'all'
+    limit?: number
+    offset?: number
+}
+
+/**
+ * Fetch authenticated user's meeting history
+ * 
+ * @param filters - Optional filters for status, role, pagination
+ * @param options - SWR configuration options
+ */
+export function useMeetingHistory(filters?: MeetingHistoryFilters, options?: SWRConfiguration) {
+    // Build query string
+    const params = new URLSearchParams()
+    if (filters?.status) params.set('status', filters.status)
+    if (filters?.role) params.set('role', filters.role)
+    if (filters?.limit) params.set('limit', filters.limit.toString())
+    if (filters?.offset) params.set('offset', filters.offset.toString())
+
+    const queryString = params.toString()
+    const url = `/api/user/meetings${queryString ? `?${queryString}` : ''}`
+
+    const { data, error, isLoading, mutate } = useSWR<MeetingHistoryResponse>(
+        url,
+        fetcher,
+        { ...defaultConfig, ...options }
+    )
+
+    return {
+        meetings: data?.meetings || [],
+        count: data?.count || 0,
+        filters: data?.filters,
+        isLoading,
+        error,
+        isError: !!error,
+        mutate,
+    }
+}
+
+/**
+ * Fetch user's meeting statistics
+ */
+export function useUserMeetingStats(options?: SWRConfiguration) {
+    const { data, error, isLoading, mutate } = useSWR<UserStatsResponse>(
+        '/api/user/meetings/stats',
+        fetcher,
+        { ...defaultConfig, ...options }
+    )
+
+    return {
+        stats: data?.stats,
+        isLoading,
+        error,
+        isError: !!error,
+        mutate,
+    }
+}
