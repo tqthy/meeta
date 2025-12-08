@@ -1,0 +1,77 @@
+**Title:** `EventListener` (Jitsi Meet SDK events)
+
+**Purpose:** Catalog of events emitted by Jitsi Meet (web SDK / iframe API) with descriptions of the callback object. This file provides a quick reference for event names, the shape of the listener argument, and the meaning of each event.
+
+**Members (CSV)**
+```csv
+stt,event,object,description
+1,cameraError,"{type: string, message: string}","type: Constant representing the general error type; message: Additional error details. Emitted when Jitsi Meet fails to access the meeting camera."
+2,avatarChanged,"{id: string, avatarURL: string}","id: Participant ID whose avatar changed; avatarURL: New avatar URL. Emitted when a participant updates their avatar."
+3,audioAvailabilityChanged,"{available: boolean}","available: New audio availability state (boolean). Emitted when audio availability changes."
+4,audioMuteStatusChanged,"{muted: boolean}","muted: New mute state (boolean). Emitted when the audio mute status changes."
+5,breakoutRoomsUpdated,"{ [roomId]: { id: string, jid: string, name: string, isMainRoom: true | undefined, participants: { [participantJid]: { displayName: string, jid: string, role: string } } }, ...}","Emitted when breakout rooms are updated. Contains room objects keyed by roomId."
+6,browserSupport,"{supported: boolean}","supported: Whether the current browser is supported (boolean). Emitted to report browser support status."
+7,contentSharingParticipantsChanged,"{data: [particId1,particId2,...]}","data: List of participant IDs currently sharing content. Emitted when screen-sharing participants change."
+8,customNotificationActionTriggered,"{data: {id: string}}","id: UUID of the triggered action. Callback for custom actions defined via showNotification."
+9,dataChannelOpened,,"Indicates a data channel has opened and messages can be sent over it."
+10,endpointTextMessageReceived,"{senderInfo: {jid: string, id: string}, eventData: {name: string, text: string}}","senderInfo.jid: sender JID; senderInfo.id: sender participant id; eventData: event name and text. Emitted when a text message is received over the data channel."
+11,nonParticipantMessageReceived,"{id: string, message: string}","id: Message ID (may be null); message: Received message. Emitted for messages from non-participants (e.g., custom prosody messages)."
+12,faceLandmarkDetected,"{faceBox: {left: number, right: number, width: number}?, faceExpression: string}","faceBox: Optional bounding box for detected face; faceExpression: Detected face expression. Emitted when a facial landmark is detected."
+13,errorOccurred,"{details: Object?, message: string?, name: string, type: string, isFatal: boolean}","name: Error code name; type: Source/type ('CONFIG','CONNECTION','CONFERENCE'); isFatal: Whether the error is fatal. Emitted when an error occurs."
+14,knockingParticipant,"{participant: {id: string, name: string}}","participant.id/name: ID and name of a participant knocking in the lobby. Emitted when someone is knocking to join."
+15,largeVideoChanged,"{id: string}","id: Participant ID currently shown in the large/stage video. Emitted when the large video selection changes."
+16,log,"{logLevel: string, args: string}","logLevel: Log level (info, error, debug, warn); args: Additional log info. Emitted when API logs are produced (requires apiLogLevels in config)."
+17,micError,"{type: string, message: string}","type: Constant representing general mic error type; message: Additional details. Emitted for microphone access/errors."
+18,screenSharingStatusChanged,"{on: boolean, details: {sourceType: string | undefined}}","on: Whether screen sharing is active; details.sourceType: source type (window, screen, proxy, device, or undefined). Emitted when local screen sharing starts/stops."
+19,dominantSpeakerChanged,"{id: string}","id: Participant ID of the new dominant speaker. Emitted when the dominant speaker changes."
+20,raiseHandUpdated,"{id: string, handRaised: number}","id: Participant ID; handRaised: 0 when lowered, or timestamp when raised. Emitted when a participant raises/lowers hand."
+21,tileViewChanged,"{enabled: boolean}","enabled: Whether tile (grid) view is active. Emitted when entering/exiting tile view."
+22,chatUpdated,"{isOpen: boolean, unreadCount: number}","isOpen: Whether the chat panel is open; unreadCount: Number of unread messages. Emitted when chat state updates."
+23,incomingMessage,"{from: string, nick: string, privateMessage: boolean, message: string, stamp: string}","from: Sender ID; nick: Sender nickname; privateMessage: Whether it is private; message: Text; stamp: Timestamp. Emitted for incoming chat messages."
+24,mouseEnter,"{event: MouseEvent fields}","Includes MouseEvent fields: clientX, clientY, movementX, movementY, offsetX, offsetY, pageX, pageY, x, y, screenX, screenY. Emitted when the mouse enters the iframe."
+25,mouseLeave,"{event: MouseEvent fields}","Includes MouseEvent fields. Emitted when the mouse leaves the iframe."
+26,mouseMove,"{event: MouseEvent fields}","Includes MouseEvent fields. Emitted on mouse move inside the iframe."
+27,participantMenuButtonClick,"{key: string, participantId: string, preventExecution: boolean}","key: Identifier of the clicked button; participantId: Target participant ID; preventExecution: Whether default action is prevented. Emitted for participant context menu button clicks."
+28,toolbarButtonClicked,"{key: string, preventExecution: boolean}","key: Identifier of the clicked toolbar button; preventExecution: Whether default action is prevented. Emitted for toolbar button clicks (requires buttonsWithNotifyClick in config)."
+29,outgoingMessage,"{message: string, privateMessage: boolean}","message: Text content; privateMessage: Whether it is private. Emitted when a chat message is sent."
+30,displayNameChange,"{id: string, displayname: string}","id: Participant ID; displayname: New display name. Emitted when a participant changes their display name."
+31,deviceListChanged,"{devices: Object}","devices: Updated list of available devices. Emitted when the device list changes."
+32,emailChange,"{id: string, email: string}","id: Participant ID; email: New email. Emitted when a participant updates email."
+33,feedbackSubmitted,"{error: string}","error: Error during feedback submission (if any). Emitted when feedback is submitted."
+34,filmstripDisplayChanged,"{visible: boolean}","visible: Whether the filmstrip is visible. Emitted when filmstrip visibility changes."
+35,toolbarVisibilityChanged,"{visible: boolean}","visible: Whether the toolbar is visible. Emitted when the toolbar is shown/hidden."
+36,moderationStatusChanged,"{mediaType: string, enabled: boolean}","mediaType: Media type affected by moderation; enabled: Whether moderation is enabled. Emitted when moderation status changes."
+37,moderationParticipantApproved,"{id: string, mediaType: string}","id: Participant ID approved; mediaType: Media type approved. Emitted when a participant is approved for moderated media."
+38,moderationParticipantRejected,"{id: string, mediaType: string}","id: Participant ID rejected; mediaType: Media type rejected. Emitted when a participant is rejected for moderated media."
+39,notificationTriggered,"{title: string, description: string}","title: Notification title; description: Notification description. Emitted when an in-app notification is triggered."
+40,participantJoined,"{id: string, displayName: string}","id: Participant ID; displayName: Participant display name. Emitted when a participant joins the room."
+41,participantKickedOut,"{kicked: {id: string, local: boolean}, kicker: {id: string}}","kicked.id: ID of kicked participant; kicked.local: Whether that participant is local; kicker.id: ID of the user who kicked. Emitted when a participant is removed from the room."
+42,participantLeft,"{id: string}","id: Participant ID. Emitted when a participant leaves the room."
+43,participantRoleChanged,"{id: string, role: string}","id: Participant ID; role: New role (e.g., 'none','moderator','participant'). Emitted when a local user's role changes."
+44,participantsPaneToggled,"{open: boolean}","open: Whether the participants pane is open. Emitted when the participants pane state changes."
+45,passwordRequired,,"Emitted when joining a password-protected room requires a password."
+46,videoConferenceJoined,"{roomName: string, id: string, displayName: string, avatarURL: string, breakoutRoom: boolean, visitor: boolean}","id: Local participant ID; roomName: Room name; breakoutRoom: Whether it's a breakout room; visitor: Whether the user is a visitor. Emitted when the local user has joined the video conference."
+47,videoConferenceLeft,"{roomName: string}","roomName: Room name. Emitted when the local user has left the video conference."
+48,conferenceCreatedTimestamp,"{timestamp: timestamp}","timestamp: Conference start time. Emitted to report the conference creation time."
+49,videoAvailabilityChanged,"{available: boolean}","available: New video availability state (boolean). Emitted when video availability changes."
+50,videoMuteStatusChanged,"{muted: boolean}","muted: New video muted state (boolean). Emitted when the video mute status changes."
+51,videoQualityChanged,"{videoQuality: number}","videoQuality: Resolution height corresponding to the new video quality setting. Emitted when video quality changes."
+52,readyToClose,,"Emitted when Jitsi Meet is ready to close (teardown tasks completed)."
+53,recordingLinkAvailable,"{link: string, ttl: number}","link: Recording link; ttl: Time-to-live for the link. Emitted when a recording link becomes available."
+54,recordingStatusChanged,"{on: boolean, mode: string, error: string | undefined, transcription: boolean}","on: Recording state; mode: Recording mode; error: Error type (if any); transcription: Whether transcription is active. Emitted when recording status changes."
+55,subjectChange,"{subject: string}","subject: New subject/topic. Emitted when the conference subject changes."
+56,suspendDetected,,"Emitted when suspend events are detected on the server."
+57,peerConnectionFailure,"{isP2P: boolean, wasConnected: boolean}","isP2P: Whether the PeerConnection is P2P; wasConnected: Whether it was connected previously. Emitted when a PeerConnection failure is detected (requires rtcstats)."
+58,transcribingStatusChanged,"{on: boolean}","on: Transcription active state (boolean). Emitted when transcribing status changes."
+59,transcriptionChunkReceived,"{language: string, messageID: string, participant: object, final: string, stable: string, unstable: string}","language: Transcription language; messageID: Chunk ID; final/stable/unstable: Different transcript versions. Emitted when a new transcription chunk is received."
+60,whiteboardStatusChanged,"{status: string}","status: New whiteboard status. Emitted when the whiteboard state changes."
+61,p2pStatusChanged,"{isP2p: boolean | null}","isP2p: Whether the new connection type is P2P. Emitted when connection type changes between P2P and JVB."
+62,audioOnlyChanged,"{audioOnlyChanged: boolean}","audioOnlyChanged: Whether audio-only mode was toggled. Emitted when audio-only mode changes."
+```
+
+**Notes:**
+- The object field descriptions are summaries; the runtime objects may include additional fields. Keep event names stable in code.
+- Translations and descriptions are based on internal repository references.
+
+---
+Source: workspace reference files.
