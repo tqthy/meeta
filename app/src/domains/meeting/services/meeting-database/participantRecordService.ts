@@ -70,7 +70,7 @@ export const participantRecordService = {
      */
     async processParticipantJoined(payload: ParticipantJoinedPayload): Promise<void> {
         const validation = validateRequiredFields(payload, [
-            'meetingId',
+            'meetingId', // This is actually the roomName from Daily.co
             'participantId',
             'displayName',
             'joinedAt',
@@ -80,48 +80,34 @@ export const participantRecordService = {
             throw new Error(`Missing required fields: ${validation.missingFields.join(', ')}`)
         }
 
+        // payload.meetingId is actually the roomName from Daily.co
+        const roomName = payload.meetingId
+
+        // Find the active meeting with this roomName
+        const meeting = await prisma.meeting.findFirst({
+            where: {
+                roomName,
+                status: MeetingStatus.ACTIVE,
+            },
+            select: { id: true },
+            orderBy: { createdAt: 'desc' }, // Get the most recent active meeting
+        })
+
+        if (!meeting) {
+            throw new Error(
+                `No active meeting found with roomName: ${roomName}. ` +
+                `Cannot add participant without an active meeting session.`
+            )
+        }
+
         const dto: UpsertParticipantDTO = {
             id: payload.participantId,
-            meetingId: payload.meetingId,
+            meetingId: meeting.id, // Use the actual database meeting ID
             userId: payload.userId,
             displayName: payload.displayName,
             email: payload.email,
             role: payload.role || ParticipantRole.PARTICIPANT,
             joinedAt: new Date(payload.joinedAt),
-        }
-
-        // First, ensure the meeting exists
-        const meeting = await prisma.meeting.findUnique({
-            where: { id: dto.meetingId },
-            select: { id: true },
-        })
-
-        if (!meeting) {
-            // Create a minimal meeting record if it doesn't exist
-            // This can happen when events arrive out of order
-            // Generate a unique roomName: meetingId_randomNumber to ensure uniqueness
-            // while keeping it deterministic per meeting
-            const randomNumber = Math.random().toString(36).substring(2, 10)
-            const uniqueRoomName = `${dto.meetingId}_${randomNumber}`
-
-            try {
-                await prisma.meeting.create({
-                    data: {
-                        id: dto.meetingId,
-                        roomName: uniqueRoomName,
-                        title: `Meeting ${dto.meetingId.substring(0, 8)}`,
-                        status: MeetingStatus.ACTIVE,
-                        // hostId is optional, so we don't need to set it
-                    },
-                })
-            } catch (error: unknown) {
-                // If meeting already exists (race condition with another participant),
-                // just continue. This is fine - we only need it to exist.
-                const prismaError = error as { code?: string }
-                if (prismaError?.code !== 'P2002') {
-                    throw error
-                }
-            }
         }
 
         // Use upsert keyed by participantId for idempotency
@@ -156,17 +142,40 @@ export const participantRecordService = {
         }
 
         const leftAt = new Date(payload.leftAt)
+        const roomName = payload.meetingId // This is actually the roomName
+
+        // Find the active meeting with this roomName
+        const meeting = await prisma.meeting.findFirst({
+            where: {
+                roomName,
+                status: MeetingStatus.ACTIVE,
+            },
+            select: { id: true, roomName: true },
+            orderBy: { createdAt: 'desc' },
+        })
+
+        if (!meeting) {
+            console.warn(
+                `[participantRecordService] No active meeting found for participant.left event. ` +
+                `RoomName: ${roomName}, ParticipantId: ${payload.participantId}`
+            )
+            return
+        }
 
         // Update only if the participant exists
         await prisma.meetingParticipant.updateMany({
             where: {
                 id: payload.participantId,
-                meetingId: payload.meetingId,
+                meetingId: meeting.id, // Use the actual database meeting ID
             },
             data: {
                 leftAt,
             },
         })
+
+        // Check if this was the last participant and end meeting if so
+        const { meetingRecordService } = await import('./meetingRecordService')
+        await meetingRecordService.checkAndEndMeetingIfEmpty(meeting.roomName)
     },
 
     /**
@@ -177,6 +186,26 @@ export const participantRecordService = {
 
         if (!validation.valid) {
             throw new Error(`Missing required fields: ${validation.missingFields.join(', ')}`)
+        }
+
+        const roomName = payload.meetingId // This is actually the roomName
+
+        // Find the active meeting with this roomName
+        const meeting = await prisma.meeting.findFirst({
+            where: {
+                roomName,
+                status: MeetingStatus.ACTIVE,
+            },
+            select: { id: true },
+            orderBy: { createdAt: 'desc' },
+        })
+
+        if (!meeting) {
+            console.warn(
+                `[participantRecordService] No active meeting found for participant.updated event. ` +
+                `RoomName: ${roomName}, ParticipantId: ${payload.participantId}`
+            )
+            return
         }
 
         const updateData: UpdateParticipantDTO = {}
@@ -198,7 +227,7 @@ export const participantRecordService = {
             await prisma.meetingParticipant.updateMany({
                 where: {
                     id: payload.participantId,
-                    meetingId: payload.meetingId,
+                    meetingId: meeting.id, // Use the actual database meeting ID
                 },
                 data: updateData,
             })

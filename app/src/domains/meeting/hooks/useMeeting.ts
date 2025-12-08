@@ -4,8 +4,12 @@
  * Orchestrates meetingService (join/end meeting) and keeps meetingStore
  * synchronized with normalized participant payloads.
  *
- * @see JitsiAPI/1-JitsiConference for conference events
- * @see JitsiAPI/2-JitsiConnection for connection lifecycle
+ * Handles cleanup for ALL navigation scenarios:
+ * - Same domain navigation (local/meeting/123 → local/dashboard)
+ * - External navigation (local/meeting/123 → soundcloud.com)
+ * - Browser back/forward buttons
+ * - Tab/window close
+ * - Page refresh
  */
 
 'use client'
@@ -58,6 +62,7 @@ export function useMeeting() {
     const isJoiningRef = useRef(false)
     const isLeavingRef = useRef(false)
     const reconciliationInProgressRef = useRef(false)
+    const hasJoinedRef = useRef(false) // Track if we've successfully joined
 
     // Handle track added (called by queue processor)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -292,6 +297,64 @@ export function useMeeting() {
         }
     }, [dispatch, trackState.remoteTracks, handleTrackAdded])
 
+    /**
+     * Leaves the current meeting and cleans up resources
+     * 
+     * Critical: Must properly dispose tracks and disconnect to release device access
+     */
+    const leaveMeeting = useCallback(async () => {
+        // Prevent multiple simultaneous leave attempts
+        if (isLeavingRef.current) {
+            console.log('[useMeeting] ⚠️ Leave already in progress, skipping...')
+            return
+        }
+
+        isLeavingRef.current = true
+        console.log('[useMeeting] 🚪 Leaving meeting - starting cleanup...')
+
+        try {
+            dispatch(setConferenceStatus('leaving'))
+
+            // Step 1: Clear event handlers to prevent new events during cleanup
+            integratedMeetingService.clearEventHandlers()
+
+            // Step 2: Release all local tracks and stop device access
+            console.log('[useMeeting] Releasing local tracks...')
+            await deviceService.releaseAllTracks()
+
+            // Step 3: Clear remote tracks storage
+            console.log('[useMeeting] Clearing remote tracks...')
+            trackService.clearRemoteTracks()
+
+            // Step 4: Leave conference and disconnect
+            console.log('[useMeeting] Disconnecting from conference...')
+            await integratedMeetingService.disconnect()
+
+            // Step 5: Reset stores
+            console.log('[useMeeting] Resetting stores...')
+            dispatch(resetMeetingState())
+            dispatch(resetTrackState())
+            dispatch(clearRemoteTracks())
+
+            // Mark as no longer joined
+            hasJoinedRef.current = false
+
+            console.log('[useMeeting] ✅ Meeting left successfully')
+        } catch (error) {
+            console.error('[useMeeting] ❌ Error leaving meeting:', error)
+            // Still reset state even on error to prevent stuck state
+            dispatch(resetMeetingState())
+            dispatch(resetTrackState())
+            dispatch(clearRemoteTracks())
+            hasJoinedRef.current = false
+        } finally {
+            // Reset the flag after a delay to allow for re-join if needed
+            setTimeout(() => {
+                isLeavingRef.current = false
+            }, 1000)
+        }
+    }, [dispatch])
+
     // Setup event handlers on mount
     useEffect(() => {
         integratedMeetingService.setEventHandlers({
@@ -314,6 +377,7 @@ export function useMeeting() {
             },
             onConferenceJoined: () => {
                 dispatch(setConferenceStatus('joined'))
+                hasJoinedRef.current = true // Mark as joined
 
                 // Add local participant
                 const localParticipant = integratedMeetingService.getLocalParticipant()
@@ -335,6 +399,7 @@ export function useMeeting() {
             },
             onConferenceLeft: () => {
                 dispatch(setConferenceStatus('left'))
+                hasJoinedRef.current = false
             },
             onUserJoined: (participant: Participant) => {
                 console.log('[useMeeting] 👤 User joined:', {
@@ -391,6 +456,77 @@ export function useMeeting() {
             integratedMeetingService.clearEventHandlers()
         }
     }, [dispatch, queueTrackEvent, reconcileTracks])
+
+    // ========================================================================
+    // CLEANUP HANDLERS - Cover ALL navigation scenarios
+    // ========================================================================
+
+    // 1. Component Unmount (handles same-domain SPA navigation)
+    // Triggers when: localhost/meeting/123 → localhost/dashboard
+    useEffect(() => {
+        return () => {
+            if (hasJoinedRef.current && !isLeavingRef.current) {
+                console.log('[useMeeting] 🧹 Component unmounting (SPA navigation) - triggering cleanup...')
+                leaveMeeting().catch(err => {
+                    console.error('[useMeeting] Error during unmount cleanup:', err)
+                })
+            }
+        }
+    }, [leaveMeeting])
+
+    // 2. beforeunload Event (handles external navigation, close, refresh)
+    // Triggers when:
+    // - localhost/meeting/123 → soundcloud.com (external domain)
+    // - User closes tab/window
+    // - User refreshes page (F5/Cmd+R)
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (hasJoinedRef.current) {
+                console.log('[useMeeting] 🚨 Page unloading - triggering emergency cleanup...')
+
+                // MUST be synchronous - browser gives very limited time
+                try {
+                    deviceService.releaseAllTracks()
+                    trackService.clearRemoteTracks()
+                    integratedMeetingService.disconnect()
+                } catch (error) {
+                    console.error('[useMeeting] Error during beforeunload cleanup:', error)
+                }
+
+                // Optional: Show "Are you sure?" dialog (many browsers block this now)
+                // Uncomment if you want to warn users before leaving
+                // e.preventDefault()
+                // e.returnValue = 'You are currently in a meeting. Are you sure you want to leave?'
+            }
+        }
+
+        window.addEventListener('beforeunload', handleBeforeUnload)
+
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload)
+        }
+    }, [])
+
+    // 3. popstate Event (handles browser back/forward buttons)
+    // Triggers when: User clicks browser back/forward arrows
+    useEffect(() => {
+        const handlePopState = () => {
+            if (hasJoinedRef.current && !isLeavingRef.current) {
+                console.log('[useMeeting] ⬅️ Browser back/forward detected - triggering cleanup...')
+                leaveMeeting().catch(err => {
+                    console.error('[useMeeting] Error during popstate cleanup:', err)
+                })
+            }
+        }
+
+        window.addEventListener('popstate', handlePopState)
+
+        return () => {
+            window.removeEventListener('popstate', handlePopState)
+        }
+    }, [leaveMeeting])
+
+    // ========================================================================
 
     /**
      * Joins a meeting room
@@ -450,58 +586,6 @@ export function useMeeting() {
     )
 
     /**
-     * Leaves the current meeting and cleans up resources
-     * 
-     * Critical: Must properly dispose tracks and disconnect to release device access
-     */
-    const leaveMeeting = useCallback(async () => {
-        // Prevent multiple simultaneous leave attempts
-        if (isLeavingRef.current) {
-            console.log('[useMeeting] ⚠️ Leave already in progress, skipping...')
-            return
-        }
-
-        isLeavingRef.current = true
-        console.log('[useMeeting] 🚪 Leaving meeting - starting cleanup...')
-
-        try {
-            dispatch(setConferenceStatus('leaving'))
-
-            // Step 1: Clear event handlers to prevent new events during cleanup
-            integratedMeetingService.clearEventHandlers()
-
-            // Step 2: Release all local tracks and stop device access
-            console.log('[useMeeting] Releasing local tracks...')
-            await deviceService.releaseAllTracks()
-
-            // Step 3: Clear remote tracks storage
-            console.log('[useMeeting] Clearing remote tracks...')
-            trackService.clearRemoteTracks()
-
-            // Step 4: Leave conference and disconnect
-            console.log('[useMeeting] Disconnecting from conference...')
-            await integratedMeetingService.disconnect()
-
-            // Step 5: Reset stores
-            console.log('[useMeeting] Resetting stores...')
-            dispatch(resetMeetingState())
-            dispatch(resetTrackState())
-            dispatch(clearRemoteTracks())
-
-            console.log('[useMeeting] ✅ Meeting left successfully')
-        } catch (error) {
-            console.error('[useMeeting] ❌ Error leaving meeting:', error)
-            // Still reset state even on error to prevent stuck state
-            dispatch(resetMeetingState())
-            dispatch(resetTrackState())
-            dispatch(clearRemoteTracks())
-        } finally {
-            // Reset the flag after a delay to allow for re-join if needed
-            setTimeout(() => {
-                isLeavingRef.current = false
-            }, 1000)
-        }
-    }, [dispatch])    /**
      * Adds a local track to the conference
      */
     const addLocalTrack = useCallback(

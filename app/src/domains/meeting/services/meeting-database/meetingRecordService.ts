@@ -193,16 +193,14 @@ export const meetingRecordService = {
         }
 
         let meetingId = payload.meetingId
-        let existingMeeting = await prisma.meeting.findUnique({
+        const existingMeeting = await prisma.meeting.findUnique({
             where: { id: meetingId },
-            select: { id: true, status: true, roomName: true },
         })
 
         if (existingMeeting) {
             if (existingMeeting.roomName === payload.roomName &&
                 (existingMeeting.status === MeetingStatus.ENDED || existingMeeting.status === MeetingStatus.CANCELLED)) {
                 meetingId = generateUniqueMeetingId(payload.roomName)
-                existingMeeting = null
             } else {
                 await prisma.meeting.update({
                     where: { id: meetingId },
@@ -216,8 +214,25 @@ export const meetingRecordService = {
                 })
                 return
             }
+
+            // If SCHEDULED, update to ACTIVE
+            // if (existingMeeting.status === MeetingStatus.SCHEDULED) {
+            //     await prisma.meeting.update({
+            //         where: { id: existingMeeting.id },
+            //         data: {
+            //             startedAt: existingMeeting.startedAt || startedAt,
+            //             status: MeetingStatus.ACTIVE,
+            //             hostId: validHostId || undefined,
+            //             ...(payload.title && { title: payload.title }),
+            //             ...(payload.description && { description: payload.description }),
+            //         },
+            //     })
+            //     return
+            // }
+
         }
 
+        // No existing meeting, create new one
         try {
             await prisma.meeting.create({
                 data: {
@@ -336,16 +351,67 @@ export const meetingRecordService = {
     },
 
     /**
-     * Get a meeting by room name
+     * Get a meeting by room name (most recent)
      */
     async getMeetingByRoomName(roomName: string) {
         return prisma.meeting.findFirst({
             where: { roomName },
+            orderBy: { createdAt: 'desc' },
             include: {
                 participants: true,
                 host: true,
             },
         })
+    },
+
+    /**
+     * Get active meeting by room name
+     */
+    async getActiveMeetingByRoomName(roomName: string) {
+        return prisma.meeting.findFirst({
+            where: {
+                roomName,
+                status: MeetingStatus.ACTIVE,
+            },
+            include: {
+                participants: true,
+                host: true,
+            },
+        })
+    },
+
+    /**
+     * Check if last participant left and end meeting if so
+     * This is called when a participant leaves
+     */
+    async checkAndEndMeetingIfEmpty(roomName: string): Promise<void> {
+        const meeting = await this.getActiveMeetingByRoomName(roomName)
+
+        if (!meeting) {
+            return // No active meeting
+        }
+
+        // Count active participants
+        const activeParticipants = await prisma.meetingParticipant.count({
+            where: {
+                meetingId: meeting.id,
+                leftAt: null, // Still in meeting
+            },
+        })
+
+        console.log(`[meetingRecordService] Room ${roomName} has ${activeParticipants} active participants`)
+
+        // If no participants left, end the meeting
+        if (activeParticipants === 0) {
+            console.log(`[meetingRecordService] No participants left, ending meeting: ${meeting.id}`)
+            await this.processMeetingEnded({
+                meetingId: meeting.id,
+                endedAt: new Date().toISOString(),
+                duration: meeting.startedAt
+                    ? Math.floor((Date.now() - meeting.startedAt.getTime()) / 1000)
+                    : undefined,
+            })
+        }
     },
 
     /**
