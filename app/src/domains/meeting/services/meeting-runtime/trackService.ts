@@ -17,29 +17,57 @@ const remoteTrackStorage = new Map<string, any>()
 
 /**
  * Extracts serializable local track info from JitsiLocalTrack
+ * 
+ * @see JitsiAPI/1-JitsiConference/Class_JitsiLocalTrack.txt for available methods
  */
 function extractLocalTrackInfo(track: any): LocalTrackInfo {
-    return {
-        id: track.getId?.() || `${track.getType()}-${Date.now()}`,
-        type: track.getType() as MediaType,
-        videoType: track.videoType || (track.getType() === 'video' ? 'camera' : undefined),
-        deviceId: track.getDeviceId?.() || '',
-        isMuted: track.isMuted?.() || false,
-        isActive: !track.disposed,
+    try {
+        return {
+            id: track.getId?.() || `${track.getType?.()}-${Date.now()}`,
+            type: track.getType?.() as MediaType,
+            videoType: track.getVideoType?.() || track.videoType || (track.getType?.() === 'video' ? 'camera' : undefined),
+            deviceId: track.getDeviceId?.() || '',
+            isMuted: track.isMuted?.() ?? false,
+            isActive: track.isActive?.() ?? !track.disposed,
+        }
+    } catch (error) {
+        console.error('[trackService] Error extracting local track info:', error)
+        return {
+            id: `error-${Date.now()}`,
+            type: 'video' as MediaType,
+            videoType: undefined,
+            deviceId: '',
+            isMuted: true,
+            isActive: false,
+        }
     }
 }
 
 /**
  * Extracts serializable remote track info from JitsiRemoteTrack
+ * 
+ * @see JitsiAPI/1-JitsiConference/Class_JitsiRemoteTrack.txt for available methods
  */
 function extractRemoteTrackInfo(track: any): RemoteTrackInfo {
-    return {
-        id: track.getId?.() || `remote-${Date.now()}`,
-        participantId: track.getParticipantId?.() || '',
-        type: track.getType() as MediaType,
-        videoType: track.videoType,
-        isMuted: track.isMuted?.() || false,
-        streamingStatus: 'active',
+    try {
+        return {
+            id: track.getId?.() || `remote-${Date.now()}`,
+            participantId: track.getParticipantId?.() || '',
+            type: track.getType?.() as MediaType,
+            videoType: track.getVideoType?.() || track.videoType,
+            isMuted: track.isMuted?.() ?? false,
+            streamingStatus: 'active',
+        }
+    } catch (error) {
+        console.error('[trackService] Error extracting remote track info:', error)
+        return {
+            id: `error-${Date.now()}`,
+            participantId: '',
+            type: 'video' as MediaType,
+            videoType: undefined,
+            isMuted: true,
+            streamingStatus: 'interrupted',
+        }
     }
 }
 
@@ -47,73 +75,149 @@ function extractRemoteTrackInfo(track: any): RemoteTrackInfo {
  * Mutes a track
  */
 async function muteTrack(track: any): Promise<void> {
-    if (!track || track.isMuted?.()) return
-    await track.mute?.()
+    if (!track) {
+        console.warn('[trackService] Cannot mute: track is null or undefined')
+        return
+    }
+
+    try {
+        if (track.isMuted?.()) return
+
+        if (typeof track.mute === 'function') {
+            await track.mute?.()
+        } else {
+            console.warn('[trackService] Track mute method not available')
+        }
+    } catch (error) {
+        console.error('[trackService] Failed to mute track:', error)
+        // Continue even if mute fails - the track may still function
+    }
 }
 
 /**
  * Unmutes a track
  */
 async function unmuteTrack(track: any): Promise<void> {
-    if (!track || !track.isMuted?.()) return
-    await track.unmute?.()
+    if (!track) {
+        console.warn('[trackService] Cannot unmute: track is null or undefined')
+        return
+    }
+
+    try {
+        if (!track.isMuted?.()) return
+
+        if (typeof track.unmute === 'function') {
+            await track.unmute?.()
+        } else {
+            console.warn('[trackService] Track unmute method not available')
+        }
+    } catch (error) {
+        console.error('[trackService] Failed to unmute track:', error)
+        // Continue even if unmute fails - the track may still function
+    }
 }
 
 /**
  * Toggles track mute state
  */
 async function toggleMute(track: any): Promise<boolean> {
-    if (!track) return true
-
-    if (track.isMuted?.()) {
-        await unmuteTrack(track)
-        return false
-    } else {
-        await muteTrack(track)
+    if (!track) {
+        console.warn('[trackService] Cannot toggle mute: track is null or undefined')
         return true
+    }
+
+    try {
+        if (track.isMuted?.()) {
+            await unmuteTrack(track)
+            return false
+        } else {
+            await muteTrack(track)
+            return true
+        }
+    } catch (error) {
+        console.error('[trackService] Failed to toggle mute:', error)
+        // Return current muted state or assume muted on error
+        return track.isMuted?.() ?? true
     }
 }
 
 /**
  * Attaches a track to a DOM element
+ * 
+ * @see JitsiAPI/1-JitsiConference/Class_JitsiLocalTrack.txt (method: attach)
+ * @see JitsiAPI/1-JitsiConference/Class_JitsiRemoteTrack.txt (method: attach)
  */
 function attachTrack(track: any, container: HTMLElement): void {
-    if (!track || !container) return
+    if (!track || !container) {
+        console.warn('[trackService] Cannot attach: track or container is null')
+        return
+    }
 
     try {
-        track.attach?.(container)
+        // Validate container is a valid HTMLElement (video or audio)
+        const tagName = container.tagName?.toLowerCase()
+        if (tagName !== 'video' && tagName !== 'audio') {
+            console.warn('[trackService] Container must be video or audio element, got:', tagName)
+            return
+        }
+
+        if (typeof track.attach === 'function') {
+            track.attach(container)
+        } else {
+            console.warn('[trackService] Track does not have attach method')
+        }
     } catch (error) {
-        console.error('Failed to attach track:', error)
+        console.error('[trackService] Failed to attach track:', error)
     }
 }
 
 /**
  * Detaches a track from a DOM element
+ * 
+ * @see JitsiAPI/1-JitsiConference/Class_JitsiLocalTrack.txt (method: detach)
+ * @see JitsiAPI/1-JitsiConference/Class_JitsiRemoteTrack.txt (method: detach)
  */
 function detachTrack(track: any, container?: HTMLElement): void {
-    if (!track) return
+    if (!track) {
+        console.warn('[trackService] Cannot detach: track is null')
+        return
+    }
 
     try {
-        if (container) {
-            track.detach?.(container)
+        if (typeof track.detach === 'function') {
+            if (container) {
+                // Detach from specific container
+                track.detach(container)
+            } else {
+                // Detach from all containers
+                track.detach()
+            }
         } else {
-            // Detach from all containers
-            track.detach?.()
+            console.warn('[trackService] Track does not have detach method')
         }
     } catch (error) {
-        console.error('Failed to detach track:', error)
+        console.error('[trackService] Failed to detach track:', error)
     }
 }
 
 /**
  * Gets the original MediaStream from a track
+ * 
+ * @see JitsiAPI/1-JitsiConference/Class_JitsiLocalTrack.txt (method: getOriginalStream)
+ * @see JitsiAPI/1-JitsiConference/Class_JitsiRemoteTrack.txt (method: getStream)
  */
 function getMediaStream(track: any): MediaStream | null {
     if (!track) return null
 
     try {
-        return track.getOriginalStream?.() || track.stream || null
-    } catch {
+        // Local tracks use getOriginalStream(), remote tracks use getStream()
+        if (track.isLocal?.()) {
+            return track.getOriginalStream?.() || track.stream || null
+        } else {
+            return track.getStream?.() || track.stream || null
+        }
+    } catch (error) {
+        console.error('[trackService] Error getting media stream:', error)
         return null
     }
 }

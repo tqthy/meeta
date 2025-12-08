@@ -1,0 +1,80 @@
+**Title:** `Commands` (Jitsi Meet SDK executeCommand)
+
+**Purpose:** Catalog of commands that can be executed via `api.executeCommand(command, ...arguments)`. These commands control meeting behavior, participant actions, and UI state. Use this reference to understand command names, input parameters, and their effects.
+
+**Members (CSV)**
+```csv
+stt,command,parameters,description
+1,displayName,"string (new display name)","Sets the display name for the local participant."
+2,password,"string (password)","Sets the password for the meeting room."
+3,toggleLobby,"boolean (desired state: true/false)","Enables or disables lobby mode."
+4,sendTones,"{tones: string (touch tone sequence), duration?: number (ms), pause?: number (ms)}","Plays touch tone sounds. duration and pause are optional, defaults to 200ms."
+5,startShareVideo,"url (string - YouTube video URL or mp4 file)","Starts sharing a video."
+6,stopShareVideo,"None","Stops sharing video (only applies if the user started the video)."
+7,subject,"string (new subject)","Sets the conference subject. Only applies if the participant is a moderator."
+8,localSubject,"string (new local subject)","Sets the local conference subject. Can be applied by all participants."
+9,toggleAudio,"None","Mutes/unmutes audio for the local participant."
+10,toggleVideo,"None","Mutes/unmutes video for the local participant."
+11,toggleFilmStrip,"None","Hides or shows the filmstrip."
+12,toggleChat,"None","Hides or shows the chat window."
+13,toggleRaiseHand,"None","Toggles the raised hand state."
+14,toggleShareScreen,"None","Starts or stops screen sharing."
+15,setNoiseSuppressionEnabled,"{enabled: boolean}","Enables or disables noise suppression on the current audio track."
+16,toggleSubtitles,"None","Starts or stops subtitles."
+17,toggleTileView,"None","Enters or exits tile view mode."
+18,hangup,"None","Ends the call."
+19,endConference,"None","Ends the conference for everyone. Can only be executed by a moderator."
+20,email,"string (new email address)","Changes the local email address."
+21,sendCameraFacingMode,"receiverParticipantId (string), facingMode (string: 'user' or 'environment', optional)","Sends a request to another participant to set camera mode."
+22,sendEndpointTextMessage,"receiverParticipantId (string), text (string)","Sends a text message to another participant via the data channel."
+23,setLargeVideoParticipant,"participantID (string, optional), videoType (string: 'camera' or 'desktop', optional)","Displays a participant on the large video."
+24,setVideoQuality,"number (resolution height, e.g., 720)","Sets the send and receive video resolution."
+25,muteEveryone,"mediaType (string: 'audio' (default) or 'video', optional)","Mutes audio/video for all participants. Can only be executed by a moderator."
+26,startRecording,"{mode: string, dropboxToken?: string, onlySelf?: boolean, shouldShare?: boolean, rtmpStreamKey?: string, rtmpBroadcastID?: string, youtubeStreamKey?: string, youtubeBroadcastID?: string, extraMetada?: Object, transcription?: boolean}","Starts local recording, file recording, streaming session, or transcription session."
+27,stopRecording,"{mode: string (local, stream, file), transcription?: boolean}","Stops ongoing local recording, streaming, file recording, or transcription session."
+28,initiatePrivateChat,"participantID (string)","Opens the chat window and sets the specified participant as the message recipient."
+29,cancelPrivateChat,"None","Cancels private chat and resets the chat window to group chat."
+30,kickParticipant,"participantID (string)","Removes a participant from the meeting."
+31,grantModerator,"participantID (string)","Grants moderator privileges to a participant."
+32,overwriteConfig,"config (Object)","Overwrites config.js properties."
+33,sendChatMessage,"message (string), to (string - recipient ID, optional), ignorePrivacy (boolean, default: false, optional)","Sends a chat message (private or group)."
+34,setFollowMe,"value (boolean), recorderOnly (boolean, default: false, optional)","Allows a moderator to enable/disable 'follow me' functionality."
+35,setSubtitles,"enabled (boolean), displaySubtitles (boolean, default: true, optional), language (string | null, default: 'en', optional)","Enables or disables subtitles."
+36,setTileView,"enabled (boolean)","Enables or disables tile view mode."
+37,answerKnockingParticipant,"id (string - participant id), approved (boolean)","Approves or rejects a participant knocking in the lobby."
+38,toggleCamera,"facingMode (string: 'user' or 'environment', optional)","Sets camera mode on mobile web or toggles between cameras if no parameter provided."
+39,toggleCameraMirror,"None","Toggles local video mirroring."
+40,toggleVirtualBackgroundDialog,"None","Toggles the virtual background selection dialog."
+41,pinParticipant,"id? (string - participant ID or null to unpin all, optional)","Pins a conference participant."
+42,setParticipantVolume,"participantID (string), volume (number from 0 to 1)","Changes a participant's volume."
+43,toggleParticipantsPane,"enabled (boolean)","Changes the visibility state of the participants pane."
+44,toggleModeration,"enable (boolean), mediaType (string: 'audio' (default) or 'video')","Changes the moderation state for the given media type."
+45,askToUnmute,"participantId (string)","Asks a participant to unmute. If audio moderation is enabled, also approves audio."
+46,approveVideo,"participantId (string)","Approves a participant to use video if video moderation is enabled."
+47,rejectParticipant,"participantId (string), mediaType (string: 'audio' (default) or 'video')","Rejects a participant from moderation for the given media type."
+48,addBreakoutRoom,"name? (string, optional)","Creates a breakout room (moderator only)."
+49,autoAssignToBreakoutRooms,"None","Automatically assigns participants to breakout rooms (moderator only)."
+50,closeBreakoutRoom,"roomId (string)","Closes a breakout room and sends participants back to the main room (moderator only)."
+51,joinBreakoutRoom,"roomId? (string, optional)","Joins a breakout room. If omitted, joins the main room."
+52,removeBreakoutRoom,"breakoutRoomJid (string)","Removes a breakout room (moderator only)."
+53,resizeFilmStrip,"{width: number}","Resizes the filmstrip."
+54,resizeLargeVideo,"width (number), height (number)","Resizes the large video container."
+55,sendParticipantToRoom,"participantId (string), roomId (string)","Sends a participant to a room (moderator only)."
+56,overwriteNames,"Array<{id: string, name: string}>","Overwrites the names of the given participants (local only)."
+57,showNotification,"{title: string, description: string, customActions?: Object[], uid?: string, type?: string, timeout?: string}","Shows a custom notification (local only). uid and customActions are optional."
+58,hideNotification,"uid (string)","Hides the notification with the given uid."
+59,toggleWhiteboard,"None","Toggles the whiteboard."
+60,setAssumedBandwidthBps,"assumedBandwidthBps (number)","Sets the assumed bandwidth in bps."
+61,setBlurredBackground,"blurType (string: 'slight-blur', 'blur' or 'none')","Sets or removes a blurred virtual background for the user's camera."
+62,setAudioOnly,"enable (boolean)","Enables or disables audio-only mode."
+63,setVirtualBackground,"enabled (boolean), backgroundImage (string - Base64 image string)","Sets a virtual background using a base64 image."
+```
+
+**Notes:**
+- All commands are executed via `api.executeCommand(command, ...arguments)`.
+- Some commands require moderator privileges.
+- Parameter descriptions include type information and optional flags.
+- Commands are case-sensitive; use exact names as listed.
+
+---
+Source: Jitsi Meet SDK documentation and workspace reference files.

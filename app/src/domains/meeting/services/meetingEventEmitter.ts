@@ -18,6 +18,15 @@ import type {
     ParticipantLeftPayload,
     TrackAddedPayload,
     TrackRemovedPayload,
+    AudioMuteChangedPayload,
+    VideoMuteChangedPayload,
+    ScreenShareStatusChangedPayload,
+    DominantSpeakerChangedPayload,
+    DisplayNameChangedPayload,
+    RaiseHandUpdated,
+    RecordingStatusChangedPayload,
+    TranscribingStatusChangedPayload,
+    TranscriptionChunkReceivedPayload,
 } from './meeting-database/types'
 
 type EventListener = (event: SerializableEvent) => void
@@ -248,6 +257,231 @@ class MeetingEventEmitter {
                 trackId,
                 removedAt: new Date().toISOString(),
             } as TrackRemovedPayload,
+        }
+        this.emit(event)
+    }
+
+    // ========================================================================
+    // Media/Audio-Video Events
+    // ========================================================================
+
+    /**
+     * Emit when audio mute status changes
+     */
+    emitAudioMuteChanged(meetingId: string, participantId: string, muted: boolean): void {
+        const event: SerializableEvent = {
+            eventId: this.generateEventId(),
+            type: 'audio.mute.changed',
+            timestamp: Date.now(),
+            meetingId,
+            payload: {
+                meetingId,
+                participantId,
+                muted,
+                timestamp: new Date().toISOString(),
+            } as AudioMuteChangedPayload,
+        }
+        this.emit(event)
+    }
+
+    /**
+     * Emit when video mute status changes
+     */
+    emitVideoMuteChanged(meetingId: string, participantId: string, muted: boolean): void {
+        const event: SerializableEvent = {
+            eventId: this.generateEventId(),
+            type: 'video.mute.changed',
+            timestamp: Date.now(),
+            meetingId,
+            payload: {
+                meetingId,
+                participantId,
+                muted,
+                timestamp: new Date().toISOString(),
+            } as VideoMuteChangedPayload,
+        }
+        this.emit(event)
+    }
+
+    /**
+     * Emit when screen sharing starts
+     */
+    emitScreenShareStarted(
+        meetingId: string,
+        participantId: string,
+        sourceType?: string
+    ): void {
+        const event: SerializableEvent = {
+            eventId: this.generateEventId(),
+            type: 'screen.share.started',
+            timestamp: Date.now(),
+            meetingId,
+            payload: {
+                meetingId,
+                participantId,
+                on: true,
+                sourceType,
+                timestamp: new Date().toISOString(),
+            } as ScreenShareStatusChangedPayload,
+        }
+        this.emit(event)
+    }
+
+    /**
+     * Emit when screen sharing stops
+     */
+    emitScreenShareStopped(meetingId: string, participantId: string): void {
+        const event: SerializableEvent = {
+            eventId: this.generateEventId(),
+            type: 'screen.share.stopped',
+            timestamp: Date.now(),
+            meetingId,
+            payload: {
+                meetingId,
+                participantId,
+                on: false,
+                timestamp: new Date().toISOString(),
+            } as ScreenShareStatusChangedPayload,
+        }
+        this.emit(event)
+    }
+
+    /**
+     * Emit when dominant speaker changes
+     */
+    emitDominantSpeakerChanged(meetingId: string, participantId: string): void {
+        const event: SerializableEvent = {
+            eventId: this.generateEventId(),
+            type: 'dominant.speaker.changed',
+            timestamp: Date.now(),
+            meetingId,
+            payload: {
+                meetingId,
+                participantId,
+                timestamp: new Date().toISOString(),
+            } as DominantSpeakerChangedPayload,
+        }
+        this.emit(event)
+    }
+
+    /**
+     * Emit when display name changes
+     */
+    emitDisplayNameChanged(
+        meetingId: string,
+        participantId: string,
+        displayName: string
+    ): void {
+        const event: SerializableEvent = {
+            eventId: this.generateEventId(),
+            type: 'display.name.changed',
+            timestamp: Date.now(),
+            meetingId,
+            payload: {
+                meetingId,
+                participantId,
+                displayName,
+                timestamp: new Date().toISOString(),
+            } as DisplayNameChangedPayload,
+        }
+        this.emit(event)
+    }
+
+    /**
+     * Emit when hand is raised or lowered
+     */
+    emitRaiseHandUpdated(
+        meetingId: string,
+        participantId: string,
+        handRaised: number
+    ): void {
+        const event: SerializableEvent = {
+            eventId: this.generateEventId(),
+            type: 'raise.hand.updated',
+            timestamp: Date.now(),
+            meetingId,
+            payload: {
+                meetingId,
+                participantId,
+                handRaised,
+                timestamp: new Date().toISOString(),
+            } as RaiseHandUpdated,
+        }
+        this.emit(event)
+    }
+
+    /**
+     * Emit when recording status changes
+     */
+    emitRecordingStatusChanged(
+        meetingId: string,
+        on: boolean,
+        mode: string,
+        transcription: boolean,
+        error?: string
+    ): void {
+        const event: SerializableEvent = {
+            eventId: this.generateEventId(),
+            type: 'recording.status.changed',
+            timestamp: Date.now(),
+            meetingId,
+            payload: {
+                meetingId,
+                on,
+                mode,
+                transcription,
+                ...(error && { error }),
+                timestamp: new Date().toISOString(),
+            } as RecordingStatusChangedPayload,
+        }
+        this.emit(event)
+    }
+
+    /**
+     * Emit when transcription status changes
+     */
+    emitTranscribingStatusChanged(meetingId: string, on: boolean): void {
+        const event: SerializableEvent = {
+            eventId: this.generateEventId(),
+            type: 'transcription.status.changed',
+            timestamp: Date.now(),
+            meetingId,
+            payload: {
+                meetingId,
+                on,
+                timestamp: new Date().toISOString(),
+            } as TranscribingStatusChangedPayload,
+        }
+        this.emit(event)
+    }
+
+    /**
+     * Emit when a transcription chunk is received
+     */
+    emitTranscriptionChunkReceived(
+        meetingId: string,
+        language: string,
+        messageID: string,
+        participant: { id: string; displayName: string },
+        final: string,
+        stable: string,
+        unstable: string
+    ): void {
+        const event: SerializableEvent = {
+            eventId: this.generateEventId(),
+            type: 'transcription.chunk.received',
+            timestamp: Date.now(),
+            meetingId,
+            payload: {
+                meetingId,
+                language,
+                messageID,
+                participant,
+                final,
+                stable,
+                unstable,
+                timestamp: new Date().toISOString(),
+            } as TranscriptionChunkReceivedPayload,
         }
         this.emit(event)
     }

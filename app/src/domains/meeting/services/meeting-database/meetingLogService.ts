@@ -7,13 +7,14 @@
  */
 
 import prisma from '../../../../lib/prisma'
+import { MeetingStatus } from '../../../../app/generated/prisma'
 import type {
     SerializableEvent,
     EventLogDTO,
     EventProcessingResult,
     MeetingDatabaseEvent,
 } from './types'
-import { isMeetingEvent, isParticipantEvent, isTrackEvent } from './types'
+import { isMeetingEvent, isParticipantEvent, isTrackEvent, isMediaEvent } from './types'
 import { meetingRecordService } from './meetingRecordService'
 import { participantRecordService } from './participantRecordService'
 
@@ -27,9 +28,21 @@ export const meetingLogService = {
      * Uses eventId as unique constraint to prevent duplicate processing
      */
     async recordEvent(event: SerializableEvent): Promise<{ id: string; alreadyProcessed: boolean }> {
+        // Extract roomName from event (event.meetingId is actually the roomName)
+        const roomName = event.meetingId || this.extractRoomName(event)
+
+        // Find the active meeting with this roomName to get the actual database meetingId
+        const actualMeetingId = await this.resolveMeetingId(roomName)
+
+        if (!actualMeetingId) {
+            // throw new Error(`Cannot record event: active meeting not found for roomName ${roomName}`)
+            console.warn(`[meetingLogService] Warning: active meeting not found for roomName ${roomName}. Event will not be recorded.`)
+            return { id: '', alreadyProcessed: false }
+        }
+
         const dto: EventLogDTO = {
             eventId: event.eventId,
-            meetingId: event.meetingId || this.extractMeetingId(event),
+            meetingId: actualMeetingId, // Use the actual database meeting ID
             eventType: event.type,
             payload: event.payload as Record<string, unknown>,
             timestamp: new Date(event.timestamp),
@@ -66,6 +79,27 @@ export const meetingLogService = {
     },
 
     /**
+     * Resolve the actual database meeting ID from a roomName
+     * Looks up the active meeting with the given roomName
+     */
+    async resolveMeetingId(roomName: string): Promise<string | null> {
+        if (!roomName) {
+            return null
+        }
+
+        const meeting = await prisma.meeting.findFirst({
+            where: {
+                roomName,
+                status: MeetingStatus.ACTIVE,
+            },
+            select: { id: true },
+            orderBy: { createdAt: 'desc' },
+        })
+
+        return meeting?.id || null
+    },
+
+    /**
      * Process an event: record it and route to appropriate service
      * Implements idempotency - won't reprocess already processed events
      */
@@ -92,6 +126,15 @@ export const meetingLogService = {
                 result = await participantRecordService.handleEvent(event)
             } else if (isTrackEvent(event)) {
                 // Track events are typically just logged, not processed further
+                result = {
+                    success: true,
+                    eventId: event.eventId,
+                    eventType: event.type,
+                }
+            } else if (isMediaEvent(event)) {
+                // Media events (audio/video mute, screen share, etc.) are logged but not processed further
+                // They can be used for analytics and audit trails
+                console.log(`[meetingLogService] Media event recorded: ${event.type}`)
                 result = {
                     success: true,
                     eventId: event.eventId,
@@ -173,6 +216,36 @@ export const meetingLogService = {
         return prisma.meetingLog.findMany({
             where: {
                 meetingId,
+                ...(options?.status && { status: options.status }),
+                ...(options?.eventType && { eventType: options.eventType }),
+            },
+            orderBy: { timestamp: 'asc' },
+            take: options?.limit,
+        })
+    },
+
+    /**
+     * Get event logs by roomName (useful for querying by Daily.co room)
+     */
+    async getEventsByRoomName(
+        roomName: string,
+        options?: {
+            status?: 'pending' | 'processed' | 'failed'
+            eventType?: string
+            limit?: number
+        }
+    ) {
+        // Find all meetings with this roomName
+        const meetings = await prisma.meeting.findMany({
+            where: { roomName },
+            select: { id: true },
+        })
+
+        const meetingIds = meetings.map(m => m.id)
+
+        return prisma.meetingLog.findMany({
+            where: {
+                meetingId: { in: meetingIds },
                 ...(options?.status && { status: options.status }),
                 ...(options?.eventType && { eventType: options.eventType }),
             },
@@ -303,9 +376,9 @@ export const meetingLogService = {
     },
 
     /**
-     * Extract meetingId from event payload if not provided at top level
+     * Extract roomName from event payload if not provided at top level
      */
-    extractMeetingId(event: SerializableEvent): string {
+    extractRoomName(event: SerializableEvent): string {
         const payload = event.payload as Record<string, unknown>
         return (payload?.meetingId as string) || ''
     },

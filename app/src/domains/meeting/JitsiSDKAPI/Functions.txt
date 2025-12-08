@@ -1,0 +1,55 @@
+````plaintext
+**Title:** `Functions` (Jitsi Meet SDK functions)
+
+**Purpose:** Catalog of functions and getters available on the Jitsi Meet SDK API. Use this reference to understand function names, parameters, return values, and short descriptions.
+
+**Members (CSV)**
+```csv
+stt,function,parameters,returns,description
+1,captureCameraPicture,"cameraFacingMode (string - 'environment'/'user', default: 'environment'), descriptionText (string), titleText (string)","Promise resolves to data (Object) containing dataURL (string - base64 image) or error (string)","Mobile browsers only. Capture a high-quality photo using the device camera. All parameters are optional."
+2,captureLargeVideoScreenshot,none,"Promise resolves to data (Object) containing dataURL (string - base64)","Capture a screenshot of the participant shown in the large video view (stage)."
+3,getAvailableDevices,none,"Promise resolves to devices (Object) with fields: audioInput: Array<Object>, audioOutput: Array<Object>, videoInput: Array<Object>. Each object contains: deviceId, groupId, kind, label.","Retrieve the list of available media devices."
+4,getContentSharingParticipants,none,"Promise resolves to res (Object) containing sharingParticipantIds: Array<string>","Return the IDs of participants currently sharing their screen."
+5,getCurrentDevices,none,"Promise resolves to devices (Object) with fields: audioInput: Object, audioOutput: Object, videoInput: Object. Each object contains: deviceId, groupId, kind, label.","Retrieve the currently selected devices."
+6,getDeploymentInfo,none,"Promise resolves to deploymentInfo (Object) containing region: string, shard: string, ...","Retrieve an object containing deployment information."
+7,getLivestreamUrl,none,"Promise resolves to livestreamData (Object) containing livestreamUrl: string","Retrieve information about the current livestream URL."
+8,getParticipantsInfo,none,"Promise resolves to an Array of participant info objects (id, displayName, avatarUrl, email)","Deprecated: Returns an array of participant info. Use getRoomsInfo instead."
+9,getRoomsInfo,none,"Promise resolves to rooms (Array). Each room contains: isMainRoom (boolean), id, jid, participants (Array<Participant>). Participant: id, jid, role, displayName, avatarUrl.","Return available rooms and their details."
+10,getSessionId,none,"Promise resolves to sessionId (string)","Return the unique meeting session id. May be empty if not available (e.g., prejoin screen)."
+11,getSharedDocumentUrl,none,"Promise resolves to sharedDocumentUrl (string)","Return the Etherpad shared document URL for the meeting. May be empty if not available."
+12,getVideoQuality,none,object,"Return the current video quality settings."
+13,getSupportedCommands,none,array,"Return an array of commands supported by api.executeCommand(command, ...arguments)."
+14,getSupportedEvents,none,array,"Return an array of events supported by api.addListener(event, listener)."
+15,isDeviceChangeAvailable,"deviceType (string - 'output'|'input' or undefined)","Promise resolves to boolean","Resolve true if changing devices is available, false otherwise."
+16,isDeviceListAvailable,none,"Promise resolves to boolean","Resolve true if the device list is available, false otherwise."
+17,isMultipleAudioInputSupported,none,"Promise resolves to boolean","Resolve true if multiple audio inputs are supported."
+18,pinParticipant,"participantId (string), videoType (string - 'camera'|'desktop', optional)",action,"Pin the participant with the given ID so their video is always shown."
+19,resizeLargeVideo,"width (number), height (number)",action,"Resize the large video container to the provided dimensions."
+20,setAudioInputDevice,"deviceLabel (string), deviceId (string)",action,"Set the audio input device by label or id."
+21,setAudioOutputDevice,"deviceLabel (string), deviceId (string)",action,"Set the audio output device by label or id."
+22,setLargeVideoParticipant,"participantId (string, optional)",action,"Display the participant with the given ID in the large video. If no ID is provided, selection is based on dominant speaker/pinned settings."
+23,setVideoInputDevice,"deviceLabel (string), deviceId (string)",action,"Set the video input device by label or id."
+24,setVirtualBackground,"enabled (boolean), backgroundImage (string - base64 image)",action,"Set a virtual background using a base64-encoded image."
+25,startRecording,"options (Object)",action,"Start recording to file or start a livestream session (see related commands for details)."
+26,stopRecording,"mode (string - 'local'|'stream'|'file'), transcription (boolean)",action,"Stop the current recording, livestream or transcription session."
+27,getNumberOfParticipants,none,"Returns numberOfParticipants (number)","Return the number of participants in the conference."
+28,getAvatarURL,"participantId (string)","Returns avatarURL (string)","Deprecated: Returns participant avatar URL. Use getRoomsInfo instead."
+29,getDisplayName,"participantId (string)","Returns displayName (string)","Return the participant's display name."
+30,getEmail,"participantId (string)","Returns email (string)","Return the participant's email."
+31,getIFrame,none,"Returns the HTML IFrame element","Return the HTML IFrame element used to load the Jitsi Meet conference."
+32,isAudioDisabled,none,"Promise resolves to disabled (boolean)","Return a promise resolving the current audio disabled state."
+33,isAudioMuted,none,"Promise resolves to muted (boolean)","Return a promise resolving whether audio is muted."
+34,isVideoMuted,none,"Promise resolves to muted (boolean)","Return a promise resolving whether video is muted."
+35,isAudioAvailable,none,"Promise resolves to available (boolean)","Return a promise resolving whether audio is available."
+36,isVideoAvailable,none,"Promise resolves to available (boolean)","Return a promise resolving whether video is available."
+37,isVisitor,none,"Returns isVisitor (boolean)","Return whether the current user is a visitor/guest."
+38,isModerationOn,"mediaType (string - 'audio'|'video', default: 'audio')","Promise resolves to isModerationOn (boolean)","Return a promise resolving whether moderation is enabled for the given media type."
+39,isP2pActive,none,"Promise resolves to isP2p (boolean|null)","Return a promise resolving whether P2P is active (null if no conference)."
+40,isParticipantForceMuted,"participantId (string), mediaType (string - 'audio'|'video', default: 'audio')","Promise resolves to isForceMuted (boolean)","Return a promise resolving whether the participant is force-muted for the given media type."
+41,isParticipantsPaneOpen,none,"Promise resolves to state (boolean)","Return a promise resolving whether the participants pane is open."
+42,isStartSilent,none,"Promise resolves to startSilent (boolean)","Return a promise resolving whether the meeting starts in viewer-only (silent) mode."
+43,listBreakoutRooms,none,"Promise resolves to breakoutRooms (map)","Return a promise resolving a map of breakout rooms."
+44,invite,"Array<Object> (each object represents an invitee, e.g. {type: 'phone', number: string} or {type: 'sip', address: string})","Promise (resolves on success, rejects on failure)","Invite the given array of participants to the meeting. The invite payload format depends on the invite service used by the deployment."
+45,dispose,none,action,"Dispose of the embedded Jitsi Meet conference."
+```
+````

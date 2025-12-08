@@ -12,6 +12,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { getJitsiMeetJS } from './jitsiLoader'
+import { meetingEventEmitter } from '../meetingEventEmitter'
 import { MeetingConfig, Participant } from '../../types/meeting'
 
 // Event handlers type
@@ -29,6 +30,8 @@ interface MeetingEventHandlers {
     onTrackMuteChanged?: (track: any) => void
     onDominantSpeakerChanged?: (participantId: string) => void
     onDisplayNameChanged?: (participantId: string, displayName: string) => void
+    onConnectionModeChanged?: (mode: 'p2p' | 'jvb', participantCount: number) => void
+    onReconcileRequired?: () => void
 }
 
 // Store connection and conference instances (not serializable, kept outside Redux)
@@ -36,23 +39,43 @@ let connection: any = null
 let conference: any = null
 let eventHandlers: MeetingEventHandlers = {}
 let localDisplayName: string = 'You'
+let currentConnectionMode: 'p2p' | 'jvb' | 'unknown' = 'unknown'
+let connectionModeEpoch: number = 0 // Increments on each mode change
 
 /**
  * Extracts serializable participant data from JitsiParticipant
+ * 
+ * @see JitsiAPI/5-JitsiParticipant/Class_JitsiParticipant.txt for available methods
  */
 function extractParticipantData(
     jitsiParticipant: any,
     isLocal: boolean = false
 ): Participant {
-    return {
-        id: jitsiParticipant.getId(),
-        displayName: jitsiParticipant.getDisplayName() || 'Guest',
-        isLocal,
-        role: jitsiParticipant.isModerator() ? 'moderator' : 'participant',
-        isAudioMuted: jitsiParticipant.isAudioMuted?.() ?? true,
-        isVideoMuted: jitsiParticipant.isVideoMuted?.() ?? true,
-        isSpeaking: false,
-        isDominantSpeaker: false,
+    // Safely call methods with proper error handling
+    try {
+        return {
+            id: jitsiParticipant.getId(),
+            displayName: jitsiParticipant.getDisplayName() || 'Guest',
+            isLocal,
+            role: jitsiParticipant.isModerator?.() ? 'moderator' : 'participant',
+            isAudioMuted: jitsiParticipant.isAudioMuted?.() ?? true,
+            isVideoMuted: jitsiParticipant.isVideoMuted?.() ?? true,
+            isSpeaking: false,
+            isDominantSpeaker: false,
+        }
+    } catch (error) {
+        console.error('[meetingService] Error extracting participant data:', error)
+        // Return minimal valid participant object on error
+        return {
+            id: jitsiParticipant.getId?.() || 'unknown',
+            displayName: 'Guest',
+            isLocal,
+            role: 'participant',
+            isAudioMuted: true,
+            isVideoMuted: true,
+            isSpeaking: false,
+            isDominantSpeaker: false,
+        }
     }
 }
 
@@ -102,6 +125,161 @@ function setupConferenceEvents(conf: any, JitsiMeetJS: any): void {
     conf.on(events.DISPLAY_NAME_CHANGED, (id: string, displayName: string) => {
         eventHandlers.onDisplayNameChanged?.(id, displayName)
     })
+
+    // Audio mute status change
+    if (events.AUDIO_MUTE_STATUS_CHANGED) {
+        conf.on(events.AUDIO_MUTE_STATUS_CHANGED, (data: any) => {
+            const participantId = data.id || 'local'
+            const isMuted = data.muted ?? true
+            // Emit to event emitter for persistence
+            // Note: currentMeetingId must be set by meetingServiceIntegration
+            if (currentMeetingId) {
+                meetingEventEmitter.emitAudioMuteChanged(currentMeetingId, participantId, isMuted)
+            }
+        })
+    }
+
+    // Video mute status change
+    if (events.VIDEO_MUTE_STATUS_CHANGED) {
+        conf.on(events.VIDEO_MUTE_STATUS_CHANGED, (data: any) => {
+            const participantId = data.id || 'local'
+            const isMuted = data.muted ?? true
+            if (currentMeetingId) {
+                meetingEventEmitter.emitVideoMuteChanged(currentMeetingId, participantId, isMuted)
+            }
+        })
+    }
+
+    // Screen sharing status
+    if (events.SCREEN_SHARING_STATUS_CHANGED) {
+        conf.on(events.SCREEN_SHARING_STATUS_CHANGED, (data: any) => {
+            const participantId = data.id || 'local'
+            const isSharing = data.on ?? false
+            const sourceType = data.details?.sourceType
+            if (currentMeetingId) {
+                if (isSharing) {
+                    meetingEventEmitter.emitScreenShareStarted(currentMeetingId, participantId, sourceType)
+                } else {
+                    meetingEventEmitter.emitScreenShareStopped(currentMeetingId, participantId)
+                }
+            }
+        })
+    }
+
+    // Raise hand updates
+    if (events.RAISE_HAND_UPDATED) {
+        conf.on(events.RAISE_HAND_UPDATED, (data: any) => {
+            const participantId = data.id
+            const handRaised = data.handRaised ?? 0
+            if (currentMeetingId && participantId) {
+                meetingEventEmitter.emitRaiseHandUpdated(currentMeetingId, participantId, handRaised)
+            }
+        })
+    }
+
+    // Recording status changes
+    if (events.RECORDING_STATUS_CHANGED) {
+        conf.on(events.RECORDING_STATUS_CHANGED, (data: any) => {
+            const isRecording = data.on ?? false
+            const mode = data.mode || 'file'
+            const hasTranscription = data.transcription ?? false
+            const error = data.error
+            if (currentMeetingId) {
+                meetingEventEmitter.emitRecordingStatusChanged(
+                    currentMeetingId,
+                    isRecording,
+                    mode,
+                    hasTranscription,
+                    error
+                )
+            }
+        })
+    }
+
+    // Transcription status changes
+    if (events.TRANSCRIBING_STATUS_CHANGED) {
+        conf.on(events.TRANSCRIBING_STATUS_CHANGED, (data: any) => {
+            const isTranscribing = data.on ?? false
+            if (currentMeetingId) {
+                meetingEventEmitter.emitTranscribingStatusChanged(currentMeetingId, isTranscribing)
+            }
+        })
+    }
+
+    // Transcription chunks received
+    if (events.TRANSCRIPTION_CHUNK_RECEIVED) {
+        conf.on(events.TRANSCRIPTION_CHUNK_RECEIVED, (data: any) => {
+            if (currentMeetingId) {
+                const participant = data.participant || {}
+                meetingEventEmitter.emitTranscriptionChunkReceived(
+                    currentMeetingId,
+                    data.language || 'en',
+                    data.messageID || '',
+                    {
+                        id: participant.id || 'unknown',
+                        displayName: participant.displayName || 'Unknown',
+                    },
+                    data.final || '',
+                    data.stable || '',
+                    data.unstable || ''
+                )
+            }
+        })
+    }
+
+    // P2P status change detection for mode transitions
+    conf.on(events.P2P_STATUS, (isP2P: boolean) => {
+        const newMode = isP2P ? 'p2p' : 'jvb'
+        const participantCount = (conf.getParticipants?.() || []).length + 1 // +1 for local
+
+        if (currentConnectionMode !== 'unknown' && currentConnectionMode !== newMode) {
+            connectionModeEpoch++
+            console.warn('[meetingService] 🔄 Connection mode changed:', {
+                from: currentConnectionMode,
+                to: newMode,
+                participantCount,
+                epoch: connectionModeEpoch,
+                timestamp: Date.now(),
+            })
+
+            // Notify handler of mode change
+            eventHandlers.onConnectionModeChanged?.(newMode, participantCount)
+
+            // Trigger reconciliation
+            eventHandlers.onReconcileRequired?.()
+        }
+
+        currentConnectionMode = newMode
+    })
+
+    // Also detect via user count changes (fallback if P2P_STATUS not available)
+    conf.on(events.USER_JOINED, () => {
+        const participantCount = (conf.getParticipants?.() || []).length + 1
+        const expectedMode = participantCount <= 2 ? 'p2p' : 'jvb'
+
+        if (currentConnectionMode !== expectedMode && currentConnectionMode !== 'unknown') {
+            connectionModeEpoch++
+            console.warn('[meetingService] 🔄 Connection mode inferred from participant count:', {
+                from: currentConnectionMode,
+                to: expectedMode,
+                participantCount,
+                epoch: connectionModeEpoch,
+            })
+            eventHandlers.onConnectionModeChanged?.(expectedMode, participantCount)
+            eventHandlers.onReconcileRequired?.()
+        }
+        currentConnectionMode = expectedMode
+    })
+}
+
+// Track current meeting ID for event emission
+let currentMeetingId: string | null = null
+
+/**
+ * Sets the current meeting ID (called by meetingServiceIntegration)
+ */
+export function setCurrentMeetingId(meetingId: string): void {
+    currentMeetingId = meetingId
 }
 
 /**
@@ -242,6 +420,8 @@ async function disconnect(): Promise<void> {
  * tracks, Jitsi may throw "Replace track failed - no transceiver" error.
  * This is a known issue where internally addTrack tries to use replaceTrack.
  * We handle this by catching the error and trying alternative approaches.
+ * 
+ * Codec-related errors from the Jitsi SDK stats code are also handled gracefully.
  */
 async function addTrack(track: any): Promise<void> {
     if (!conference) {
@@ -249,12 +429,32 @@ async function addTrack(track: any): Promise<void> {
         return
     }
 
+    // Validate track object before proceeding
+    if (!track || typeof track.getType !== 'function' || typeof track.getId !== 'function') {
+        console.error('[meetingService] Invalid track object, cannot add')
+        return
+    }
+
     const trackType = track.getType?.()
     const trackId = track.getId?.()
+
+    if (!trackType || !trackId) {
+        console.error('[meetingService] Track missing type or ID, cannot add')
+        return
+    }
+
     const localTracks = conference.getLocalTracks() || []
 
     // Check if this exact track is already in the conference
-    const trackAlreadyAdded = localTracks.some((t: any) => t === track || t.getId?.() === trackId)
+    const trackAlreadyAdded = localTracks.some((t: any) => {
+        try {
+            return t === track || t.getId?.() === trackId
+        } catch (e) {
+            // Ignore errors comparing tracks
+            return false
+        }
+    })
+
     if (trackAlreadyAdded) {
         console.log('[meetingService] Track already in conference, skipping:', trackType, 'id:', trackId)
         return
@@ -262,7 +462,14 @@ async function addTrack(track: any): Promise<void> {
 
     // Find existing track of same type that actually belongs to conference
     const existingTrack = localTracks.find(
-        (t: any) => t.getType?.() === trackType
+        (t: any) => {
+            try {
+                return t.getType?.() === trackType
+            } catch (e) {
+                // Ignore errors checking track type
+                return false
+            }
+        }
     )
 
     try {
@@ -279,11 +486,13 @@ async function addTrack(track: any): Promise<void> {
         // Handle the "no transceiver" error that occurs when adding first track
         // to an already-joined conference. This is a known Jitsi issue where
         // internally addTrack tries to use replaceTrack even when there's no existing track.
-        const isTransceiverError = error?.message?.includes('no transceiver') ||
-            error?.message?.includes('Replace track failed')
+        const errorMessage = error?.message?.toLowerCase?.() || ''
+        const isTransceiverError = errorMessage.includes('no transceiver') ||
+            errorMessage.includes('replace track failed')
+        const isCodecError = errorMessage.includes('codec')
 
-        if (isTransceiverError) {
-            console.warn('[meetingService] Transceiver error detected, trying alternative methods:', error.message)
+        if (isTransceiverError || isCodecError) {
+            console.warn('[meetingService] Transceiver/codec error detected, trying alternative methods:', error.message)
 
             // Try multiple fallback approaches
             try {
@@ -312,9 +521,9 @@ async function addTrack(track: any): Promise<void> {
                 // The track is still available locally even if not transmitted
             }
         } else {
-            // Unexpected error, rethrow
+            // Unexpected error, log but attempt to continue
             console.error('[meetingService] addTrack failed with unexpected error:', error)
-            throw error
+            // Don't rethrow - the track may still work locally
         }
     }
 }
@@ -329,20 +538,35 @@ async function removeTrack(track: any): Promise<void> {
         return
     }
 
-    // Verify the track belongs to this conference
-    const localTracks = conference.getLocalTracks() || []
-    const trackExists = localTracks.some((t: any) => t === track || t.getId?.() === track.getId?.())
-
-    if (!trackExists) {
-        console.warn('[meetingService] Track does not belong to conference, skipping removal')
+    // Validate track object
+    if (!track || typeof track.getId !== 'function') {
+        console.warn('[meetingService] Invalid track object, cannot remove')
         return
     }
 
     try {
+        // Verify the track belongs to this conference
+        const localTracks = conference.getLocalTracks() || []
+        const trackId = track.getId?.()
+
+        const trackExists = localTracks.some((t: any) => {
+            try {
+                return t === track || t.getId?.() === trackId
+            } catch (e) {
+                // Ignore errors comparing tracks
+                return false
+            }
+        })
+
+        if (!trackExists) {
+            console.warn('[meetingService] Track does not belong to conference, skipping removal')
+            return
+        }
+
         await conference.removeTrack(track)
     } catch (error) {
         console.error('[meetingService] Failed to remove track:', error)
-        throw error
+        // Don't rethrow - the track may still be cleaned up locally
     }
 }
 
@@ -404,6 +628,49 @@ function clearEventHandlers(): void {
     eventHandlers = {}
 }
 
+/**
+ * Gets a snapshot of all current remote tracks from the conference
+ * Used for reconciliation after P2P↔SFU mode changes
+ */
+function getRemoteTracksSnapshot(): { participantId: string; tracks: any[] }[] {
+    if (!conference) return []
+
+    const participants = conference.getParticipants?.() || []
+    const snapshot: { participantId: string; tracks: any[] }[] = []
+
+    for (const participant of participants) {
+        const participantId = participant.getId()
+        const tracks = participant.getTracks?.() || []
+
+        if (tracks.length > 0) {
+            snapshot.push({
+                participantId,
+                tracks: tracks.filter((t: any) => !t.isLocal?.()),
+            })
+        }
+    }
+
+    console.log('[meetingService] 📸 Tracks snapshot:', {
+        participantCount: snapshot.length,
+        trackCounts: snapshot.map(s => ({ id: s.participantId, tracks: s.tracks.length })),
+        epoch: connectionModeEpoch,
+        mode: currentConnectionMode,
+    })
+
+    return snapshot
+}
+
+/**
+ * Gets current connection mode and epoch for tracking transitions
+ */
+function getConnectionStatus() {
+    return {
+        mode: currentConnectionMode,
+        epoch: connectionModeEpoch,
+        participantCount: conference ? (conference.getParticipants?.() || []).length + 1 : 0,
+    }
+}
+
 export const meetingService = {
     connect,
     disconnect,
@@ -418,4 +685,6 @@ export const meetingService = {
     setEventHandlers,
     clearEventHandlers,
     extractParticipantData,
+    getRemoteTracksSnapshot,
+    getConnectionStatus,
 }

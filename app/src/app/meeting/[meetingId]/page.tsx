@@ -22,9 +22,6 @@ import { useSession } from '@/lib/auth-client'
 
 type LayoutType = 'auto' | 'grid' | 'sidebar' | 'spotlight'
 
-// Jitsi server URL - should come from env in production
-
-// TODO: Replace with actual messages data
 const mockMessages: any[] = []
 
 export default function MeetingPage() {
@@ -39,13 +36,13 @@ export default function MeetingPage() {
     const [showGridLayout, setShowGridLayout] = useState(false)
     const [currentLayout, setCurrentLayout] = useState<LayoutType>('grid')
 
-    // Get user settings from session storage
+    // User settings
     const [userName, setUserName] = useState<string>('Guest')
     const [initialMicEnabled, setInitialMicEnabled] = useState(false)
     const [initialCameraEnabled, setInitialCameraEnabled] = useState(false)
     const [hasInitialized, setHasInitialized] = useState(false)
 
-    // Auth session - get real user ID
+    // Auth session
     const { data: session } = useSession()
     const userId = session?.user?.id
 
@@ -54,7 +51,7 @@ export default function MeetingPage() {
     const localTracks = useLocalTracks()
     const remoteTracks = useRemoteTracks()
 
-    // Event persistence - sends meeting events to backend for storage
+    // Event persistence
     const { flushEvents } = useEventPersistence(meetingId, {
         debug: process.env.NODE_ENV === 'development',
         onEventsSent: (count) => {
@@ -81,30 +78,23 @@ export default function MeetingPage() {
         }
     }, [])
 
-    // Destructure meeting properties for stable dependencies
-    const {
-        isConnected: meetingIsConnected,
-        isConnecting: meetingIsConnecting,
-        joinMeeting,
-        isJoined: meetingIsJoined,
-    } = meeting
-
-    // Join meeting when component mounts
+    // Join meeting when ready
     useEffect(() => {
         if (
             hasInitialized &&
             meetingId &&
             userName &&
-            !meetingIsConnected &&
-            !meetingIsConnecting
+            !meeting.isConnected &&
+            !meeting.isConnecting
         ) {
-            joinMeeting(
+            console.log('[MeetingPage] 🚀 Joining meeting:', meetingId)
+            meeting.joinMeeting(
                 meetingId,
                 userName,
                 meetingId,
                 userId,
-                undefined, // title - can be set later
-                undefined // description - can be set later
+                undefined,
+                undefined
             )
         }
     }, [
@@ -112,17 +102,15 @@ export default function MeetingPage() {
         meetingId,
         userName,
         userId,
-        meetingIsConnected,
-        meetingIsConnecting,
-        joinMeeting,
+        meeting,
+        meeting.isConnected,
+        meeting.isConnecting,
+        meeting.joinMeeting,
     ])
 
-    // Note: Event emission now handled by integratedMeetingService
-    // No need to manually emit meeting.started and participant.joined events
-
-    // Enable tracks after joining based on initial settings
+    // Enable tracks after joining
     useEffect(() => {
-        if (meetingIsJoined) {
+        if (meeting.isJoined) {
             if (initialMicEnabled && !localTracks.isAudioEnabled) {
                 localTracks.enableAudio()
             }
@@ -130,37 +118,54 @@ export default function MeetingPage() {
                 localTracks.enableVideo()
             }
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
-        meetingIsJoined,
+        meeting,
+        localTracks,
+        meeting.isJoined,
         initialMicEnabled,
         initialCameraEnabled,
         localTracks.isAudioEnabled,
         localTracks.isVideoEnabled,
+        localTracks.enableAudio,
+        localTracks.enableVideo,
     ])
 
-    // CRITICAL: Cleanup on page unmount (user navigates away)
-    // This ensures device access is released even if user doesn't click Leave
-    // Use ref to avoid dependency on meeting object which changes frequently
-    const meetingRef = React.useRef(meeting)
-    meetingRef.current = meeting
-
+    // IMPROVED CLEANUP: Properly handle component unmount
     useEffect(() => {
-        // This cleanup ONLY runs when the component actually unmounts (page navigation)
+        // Cleanup function runs when component unmounts
         return () => {
             console.log(
-                '[MeetingPage] 🧹 Page unmounting - cleaning up meeting'
+                '[MeetingPage] 🧹 Component unmounting - leaving meeting'
             )
-            // Use ref to access latest meeting object without causing re-runs
-            meetingRef.current.leaveMeeting().catch((err) => {
-                console.error(
-                    '[MeetingPage] Error during unmount cleanup:',
-                    err
-                )
+
+            // Leave meeting (this should handle all cleanup internally)
+            meeting.leaveMeeting().catch((err) => {
+                console.error('[MeetingPage] Error leaving meeting:', err)
             })
+
+            // Flush any pending events
+            if (userId) {
+                flushEvents().catch((err) => {
+                    console.error('[MeetingPage] Error flushing events:', err)
+                })
+            }
         }
-        // Empty dependency array = only runs on actual mount/unmount
-    }, [])
+    }, [meeting.leaveMeeting, meeting, flushEvents, userId])
+
+    // Handle page close/refresh (optional - for user confirmation)
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            // Only show confirmation if user is in an active meeting
+            if (meeting.isJoined) {
+                e.preventDefault()
+                e.returnValue = '' // Modern browsers show generic message
+            }
+        }
+
+        window.addEventListener('beforeunload', handleBeforeUnload)
+        return () =>
+            window.removeEventListener('beforeunload', handleBeforeUnload)
+    }, [meeting.isJoined])
 
     // Media control handlers
     const handleToggleMic = useCallback(async () => {
@@ -169,12 +174,7 @@ export default function MeetingPage() {
         } else {
             await localTracks.enableAudio()
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [
-        localTracks.isAudioEnabled,
-        localTracks.enableAudio,
-        localTracks.disableAudio,
-    ])
+    }, [localTracks])
 
     const handleToggleCamera = useCallback(async () => {
         if (localTracks.isVideoEnabled) {
@@ -182,30 +182,25 @@ export default function MeetingPage() {
         } else {
             await localTracks.enableVideo()
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [
-        localTracks.isVideoEnabled,
-        localTracks.enableVideo,
-        localTracks.disableVideo,
-    ])
+    }, [localTracks])
 
     const handleLeave = useCallback(async () => {
         console.log('[MeetingPage] 🚪 Leave button clicked')
 
         try {
-            // Flush any pending events before leaving
+            // Flush events before leaving
             if (userId) {
                 await flushEvents()
             }
 
-            // Leave the meeting (this will release tracks and disconnect)
+            // Leave meeting
             await meeting.leaveMeeting()
 
-            // Navigate back
+            // Navigate away
             router.push('/dashboard')
         } catch (error) {
             console.error('[MeetingPage] Error during leave:', error)
-            // Still navigate away even on error
+            // Navigate anyway to avoid stuck state
             router.push('/dashboard')
         }
     }, [meeting, router, flushEvents, userId])
@@ -214,10 +209,7 @@ export default function MeetingPage() {
         setCurrentLayout(layout)
     }, [])
 
-    // Build participants list for UI
-    // Note: This will rebuild on participant mute changes, which is intentional
-    // The key optimization is that RemoteVideo component now handles mute changes
-    // without recreating streams, so re-renders are cheap
+    // Build participants list
     const allParticipants = useMemo(() => {
         const participantList: any[] = []
 
@@ -227,7 +219,6 @@ export default function MeetingPage() {
                 .length,
         })
 
-        // Add all participants from meeting state
         for (const participant of meeting.participantList) {
             let videoTrackObj: any = null
             let audioTrackObj: any = null
@@ -243,38 +234,12 @@ export default function MeetingPage() {
                         videoTrackObj = trackService.getRemoteTrack(
                             remoteParticipantTracks.video.id
                         )
-                        console.log(
-                            '[MeetingPage] 📹 Remote video track for',
-                            participant.displayName,
-                            ':',
-                            {
-                                trackId: remoteParticipantTracks.video.id,
-                                hasTrackObject: !!videoTrackObj,
-                                trackType: videoTrackObj?.getType?.(),
-                            }
-                        )
                     }
                     if (remoteParticipantTracks.audio) {
                         audioTrackObj = trackService.getRemoteTrack(
                             remoteParticipantTracks.audio.id
                         )
-                        console.log(
-                            '[MeetingPage] 🔊 Remote audio track for',
-                            participant.displayName,
-                            ':',
-                            {
-                                trackId: remoteParticipantTracks.audio.id,
-                                hasTrackObject: !!audioTrackObj,
-                                trackType: audioTrackObj?.getType?.(),
-                            }
-                        )
                     }
-                } else {
-                    console.log(
-                        '[MeetingPage] ⚠️ No tracks found for remote participant:',
-                        participant.displayName,
-                        participant.id
-                    )
                 }
             }
 
@@ -295,7 +260,7 @@ export default function MeetingPage() {
             })
         }
 
-        // Sort: local participant first, then by join order
+        // Sort: local participant first
         return participantList.sort((a, b) => {
             if (a.isLocal) return -1
             if (b.isLocal) return 1
@@ -303,7 +268,6 @@ export default function MeetingPage() {
         })
     }, [meeting.participantList, localTracks, remoteTracks.tracksByParticipant])
 
-    // Show loading state while connecting
     const isLoading =
         meeting.isConnecting ||
         meeting.connectionStatus === 'connecting' ||
@@ -311,9 +275,7 @@ export default function MeetingPage() {
 
     return (
         <div className="flex h-screen bg-gray-900">
-            {/* Main content */}
             <div className="flex-1 flex flex-col">
-                {/* Video grid */}
                 <div className="flex-1 p-4 pb-32">
                     <MeetingContainer
                         participants={allParticipants}
@@ -323,14 +285,12 @@ export default function MeetingPage() {
                     />
                 </div>
 
-                {/* Error display */}
                 {meeting.error && (
                     <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-red-600 text-white px-4 py-2 rounded-lg shadow-lg z-50">
                         {meeting.error.message}
                     </div>
                 )}
 
-                {/* Control bar */}
                 <ControlBar
                     onShowParticipants={() => setShowParticipants(true)}
                     onShowChat={() => setShowChat(true)}
@@ -345,7 +305,6 @@ export default function MeetingPage() {
                 />
             </div>
 
-            {/* Side panels */}
             <ParticipantGrid
                 isOpen={showParticipants}
                 onClose={() => setShowParticipants(false)}
@@ -363,7 +322,6 @@ export default function MeetingPage() {
                 onClose={() => setShowChat(false)}
             />
 
-            {/* Modals */}
             <SettingsMenu
                 isOpen={showSettings}
                 onClose={() => setShowSettings(false)}

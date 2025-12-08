@@ -74,7 +74,6 @@ export const meetingRecordService = {
         const validation = validateRequiredFields(payload, [
             'meetingId',
             'roomName',
-            'hostUserId',
             'title',
             'scheduledAt',
         ])
@@ -83,34 +82,70 @@ export const meetingRecordService = {
             throw new Error(`Missing required fields: ${validation.missingFields.join(', ')}`)
         }
 
+        let validHostId = null
+        if (payload.hostUserId) {
+            const hostExists = await prisma.user.findUnique({
+                where: { id: payload.hostUserId },
+                select: { id: true },
+            })
+            validHostId = hostExists ? payload.hostUserId : null
+        }
+
         const dto: CreateMeetingDTO = {
             id: payload.meetingId,
             roomName: payload.roomName,
             title: payload.title,
             description: payload.description,
-            hostId: payload.hostUserId,
+            hostId: validHostId || "(unknown)",
             scheduledAt: new Date(payload.scheduledAt),
             status: MeetingStatus.SCHEDULED,
         }
 
-        // Upsert to handle duplicate events
-        await prisma.meeting.upsert({
+        const existingMeeting = await prisma.meeting.findUnique({
             where: { id: dto.id },
-            update: {
-                title: dto.title,
-                description: dto.description,
-                scheduledAt: dto.scheduledAt,
-            },
-            create: {
-                id: dto.id,
-                roomName: dto.roomName,
-                title: dto.title,
-                description: dto.description,
-                hostId: dto.hostId,
-                scheduledAt: dto.scheduledAt,
-                status: dto.status,
-            },
+            select: { id: true },
         })
+
+        if (existingMeeting) {
+            await prisma.meeting.update({
+                where: { id: dto.id },
+                data: {
+                    title: dto.title,
+                    description: dto.description,
+                    scheduledAt: dto.scheduledAt,
+                    hostId: validHostId,
+                },
+            })
+        } else {
+            try {
+                await prisma.meeting.create({
+                    data: {
+                        id: dto.id,
+                        roomName: dto.roomName,
+                        title: dto.title,
+                        description: dto.description,
+                        hostId: validHostId,
+                        scheduledAt: dto.scheduledAt,
+                        status: dto.status,
+                    },
+                })
+            } catch (error: unknown) {
+                const prismaError = error as { code?: string }
+                if (prismaError?.code === 'P2002' || prismaError?.code === 'P2025') {
+                    await prisma.meeting.update({
+                        where: { id: dto.id },
+                        data: {
+                            title: dto.title,
+                            description: dto.description,
+                            scheduledAt: dto.scheduledAt,
+                            hostId: validHostId,
+                        },
+                    })
+                } else {
+                    throw error
+                }
+            }
+        }
     },
 
     /**
@@ -120,7 +155,6 @@ export const meetingRecordService = {
         const validation = validateRequiredFields(payload, [
             'meetingId',
             'roomName',
-            'hostUserId',
             'startedAt',
         ])
 
@@ -130,25 +164,117 @@ export const meetingRecordService = {
 
         const startedAt = new Date(payload.startedAt)
 
-        // Upsert: create if not exists (ad-hoc meeting), update if exists (scheduled meeting)
-        await prisma.meeting.upsert({
-            where: { id: payload.meetingId },
-            update: {
-                startedAt,
-                status: MeetingStatus.ACTIVE,
-                ...(payload.title && { title: payload.title }),
-                ...(payload.description && { description: payload.description }),
-            },
-            create: {
-                id: payload.meetingId,
+        let validHostId = null
+        if (payload.hostUserId) {
+            const hostExists = await prisma.user.findUnique({
+                where: { id: payload.hostUserId },
+                select: { id: true },
+            })
+            validHostId = hostExists ? payload.hostUserId : null
+        }
+
+        const existingRoomWithSameName = await prisma.meeting.findFirst({
+            where: {
                 roomName: payload.roomName,
-                title: payload.title || `Meeting ${payload.roomName}`,
-                description: payload.description,
-                hostId: payload.hostUserId,
-                startedAt,
-                status: MeetingStatus.ACTIVE,
+                status: {
+                    in: [MeetingStatus.ACTIVE, MeetingStatus.SCHEDULED],
+                },
             },
+            select: { id: true, status: true },
         })
+
+        if (existingRoomWithSameName) {
+            throw new Error(`Cannot create new room: ${existingRoomWithSameName.status} meeting already exists with room name ${payload.roomName}`)
+        }
+
+        const generateUniqueMeetingId = (roomName: string): string => {
+            const randomSuffix = Math.random().toString(36).substring(2, 10)
+            return `${roomName}_${randomSuffix}`
+        }
+
+        let meetingId = payload.meetingId
+        const existingMeeting = await prisma.meeting.findUnique({
+            where: { id: meetingId },
+        })
+
+        if (existingMeeting) {
+            if (existingMeeting.roomName === payload.roomName &&
+                (existingMeeting.status === MeetingStatus.ENDED || existingMeeting.status === MeetingStatus.CANCELLED)) {
+                meetingId = generateUniqueMeetingId(payload.roomName)
+            } else {
+                await prisma.meeting.update({
+                    where: { id: meetingId },
+                    data: {
+                        startedAt,
+                        status: MeetingStatus.ACTIVE,
+                        hostId: validHostId,
+                        ...(payload.title && { title: payload.title }),
+                        ...(payload.description && { description: payload.description }),
+                    },
+                })
+                return
+            }
+
+            // If SCHEDULED, update to ACTIVE
+            // if (existingMeeting.status === MeetingStatus.SCHEDULED) {
+            //     await prisma.meeting.update({
+            //         where: { id: existingMeeting.id },
+            //         data: {
+            //             startedAt: existingMeeting.startedAt || startedAt,
+            //             status: MeetingStatus.ACTIVE,
+            //             hostId: validHostId || undefined,
+            //             ...(payload.title && { title: payload.title }),
+            //             ...(payload.description && { description: payload.description }),
+            //         },
+            //     })
+            //     return
+            // }
+
+        }
+
+        // No existing meeting, create new one
+        try {
+            await prisma.meeting.create({
+                data: {
+                    id: meetingId,
+                    roomName: payload.roomName,
+                    title: payload.title || `Meeting ${payload.roomName}`,
+                    description: payload.description,
+                    hostId: validHostId,
+                    startedAt,
+                    status: MeetingStatus.ACTIVE,
+                },
+            })
+        } catch (error: unknown) {
+            const prismaError = error as { code?: string }
+            if (prismaError?.code === 'P2002') {
+                meetingId = generateUniqueMeetingId(payload.roomName)
+                await prisma.meeting.create({
+                    data: {
+                        id: meetingId,
+                        roomName: payload.roomName,
+                        title: payload.title || `Meeting ${payload.roomName}`,
+                        description: payload.description,
+                        hostId: validHostId,
+                        startedAt,
+                        status: MeetingStatus.ACTIVE,
+                    },
+                })
+            } else if (prismaError?.code === 'P2025') {
+                await prisma.meeting.update({
+                    where: { id: meetingId },
+                    data: {
+                        startedAt,
+                        status: MeetingStatus.ACTIVE,
+                        hostId: validHostId,
+                        ...(payload.title && { title: payload.title }),
+                        ...(payload.description && { description: payload.description }),
+                    },
+                })
+            } else {
+                throw error
+            }
+        }
     },
 
     /**
@@ -172,9 +298,17 @@ export const meetingRecordService = {
             updateData.duration = payload.duration
         }
 
-        await prisma.meeting.update({
+        await prisma.meeting.upsert({
             where: { id: payload.meetingId },
-            data: updateData,
+            update: updateData,
+            create: {
+                id: payload.meetingId,
+                roomName: `room-${payload.meetingId.substring(0, 8)}`,
+                title: `Meeting ${payload.meetingId.substring(0, 8)}`,
+                hostId: null,
+                endedAt,
+                status: MeetingStatus.ENDED,
+            },
         })
     },
 
@@ -188,9 +322,16 @@ export const meetingRecordService = {
             throw new Error(`Missing required fields: ${validation.missingFields.join(', ')}`)
         }
 
-        await prisma.meeting.update({
+        await prisma.meeting.upsert({
             where: { id: payload.meetingId },
-            data: {
+            update: {
+                status: MeetingStatus.CANCELLED,
+            },
+            create: {
+                id: payload.meetingId,
+                roomName: `room-${payload.meetingId.substring(0, 8)}`,
+                title: `Meeting ${payload.meetingId.substring(0, 8)}`,
+                hostId: null,
                 status: MeetingStatus.CANCELLED,
             },
         })
@@ -210,16 +351,67 @@ export const meetingRecordService = {
     },
 
     /**
-     * Get a meeting by room name
+     * Get a meeting by room name (most recent)
      */
     async getMeetingByRoomName(roomName: string) {
-        return prisma.meeting.findUnique({
+        return prisma.meeting.findFirst({
             where: { roomName },
+            orderBy: { createdAt: 'desc' },
             include: {
                 participants: true,
                 host: true,
             },
         })
+    },
+
+    /**
+     * Get active meeting by room name
+     */
+    async getActiveMeetingByRoomName(roomName: string) {
+        return prisma.meeting.findFirst({
+            where: {
+                roomName,
+                status: MeetingStatus.ACTIVE,
+            },
+            include: {
+                participants: true,
+                host: true,
+            },
+        })
+    },
+
+    /**
+     * Check if last participant left and end meeting if so
+     * This is called when a participant leaves
+     */
+    async checkAndEndMeetingIfEmpty(roomName: string): Promise<void> {
+        const meeting = await this.getActiveMeetingByRoomName(roomName)
+
+        if (!meeting) {
+            return // No active meeting
+        }
+
+        // Count active participants
+        const activeParticipants = await prisma.meetingParticipant.count({
+            where: {
+                meetingId: meeting.id,
+                leftAt: null, // Still in meeting
+            },
+        })
+
+        console.log(`[meetingRecordService] Room ${roomName} has ${activeParticipants} active participants`)
+
+        // If no participants left, end the meeting
+        if (activeParticipants === 0) {
+            console.log(`[meetingRecordService] No participants left, ending meeting: ${meeting.id}`)
+            await this.processMeetingEnded({
+                meetingId: meeting.id,
+                endedAt: new Date().toISOString(),
+                duration: meeting.startedAt
+                    ? Math.floor((Date.now() - meeting.startedAt.getTime()) / 1000)
+                    : undefined,
+            })
+        }
     },
 
     /**
