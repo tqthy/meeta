@@ -2,3 +2,6 @@
 
 **/ai_logs/**
 .github/copilot-instructions.md
+*.md
+!README.md
+!AGENTS.md
