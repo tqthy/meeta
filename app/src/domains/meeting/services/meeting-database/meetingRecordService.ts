@@ -18,6 +18,7 @@ import type {
     EventProcessingResult,
 } from './types'
 import { validateRequiredFields } from './types'
+import { transcriptRecordService } from './transcriptRecordService'
 
 /**
  * Service for persisting meeting lifecycle events
@@ -289,6 +290,17 @@ export const meetingRecordService = {
             } else {
                 throw error
             }
+        }
+
+        // Replay any pending transcription events for this room
+        try {
+            const replayed = await transcriptRecordService.replayPendingEvents(payload.roomName)
+            if (replayed > 0) {
+                console.log(`[meetingRecordService] Replayed ${replayed} pending transcription events for room: ${payload.roomName}`)
+            }
+        } catch (error) {
+            console.error(`[meetingRecordService] Error replaying pending events:`, error)
+            // Don't throw - meeting was created successfully, replay is best-effort
         }
     },
 

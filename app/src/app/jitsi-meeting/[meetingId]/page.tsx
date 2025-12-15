@@ -297,15 +297,27 @@ export default function JitsiMeetingPage() {
         // transcriptionChunkReceived - New transcription chunk
         api.addListener(
             'transcriptionChunkReceived',
-            (event: {
-                language: string
-                messageID: string
-                participant: { id: string; name?: string } | null
-                final: string
-                stable: string
-                unstable: string
+            (rawEvent: {
+                data?: {
+                    language?: string
+                    messageID?: string
+                    participant?: { id?: string; name?: string } | null
+                    final?: string
+                    stable?: string
+                    unstable?: string
+                }
+                // Also handle direct properties for API compatibility
+                language?: string
+                messageID?: string
+                participant?: { id?: string; name?: string } | null
+                final?: string
+                stable?: string
+                unstable?: string
             }) => {
-                console.log('[Jitsi Event] transcriptionChunkReceived:', event)
+                console.log('[Jitsi Event] transcriptionChunkReceived:', rawEvent)
+
+                // Jitsi wraps the event data in a 'data' property - unwrap it
+                const event = rawEvent.data || rawEvent
 
                 // Guard: validate participant exists
                 const participant = event.participant ?? null
@@ -319,13 +331,19 @@ export default function JitsiMeetingPage() {
                 const text = event.final || event.stable
                 if (!text?.trim()) return
 
+                // Determine userId: only local participant has authenticated userId
+                // For remote participants, userId is unknown (they may or may not be logged in)
+                const isLocalParticipant = participant?.id === localParticipantIdRef.current
+                const speakerUserId = isLocalParticipant ? session?.user?.id : undefined
+
                 meetingEventEmitter.emitTranscriptionChunkReceived(
                     meetingId,
                     event.language || 'vi-VN',
-                    event.messageID,
+                    event.messageID || `msg-${Date.now()}`,
                     {
                         id: participant?.id || 'SYSTEM',
                         displayName: participant?.name || 'System',
+                        userId: speakerUserId, // Only set for authenticated local participant
                     },
                     event.final || '',
                     event.stable || '',

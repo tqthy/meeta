@@ -9,6 +9,7 @@
  * - Speaker mapping to userId when available
  * - Automatic fullText compilation on transcription end
  * - State machine: PENDING → ACTIVE → COMPLETED | FAILED
+ * - Queues events when meeting not found (PendingTranscriptionEvent)
  */
 
 import prisma from '@/lib/prisma'
@@ -19,6 +20,25 @@ import type {
   TranscribingStatusChangedPayload,
   TranscriptionChunkReceivedPayload,
 } from './types'
+
+/**
+ * Error codes for transcript processing
+ */
+export const TranscriptErrorCodes = {
+  MEETING_NOT_FOUND: 'MEETING_NOT_FOUND',
+  INVALID_PAYLOAD: 'INVALID_PAYLOAD',
+  DATABASE_ERROR: 'DATABASE_ERROR',
+} as const
+
+export type TranscriptErrorCode = typeof TranscriptErrorCodes[keyof typeof TranscriptErrorCodes]
+
+/**
+ * Extended result with error code for better handling
+ */
+export interface TranscriptProcessingResult extends EventProcessingResult {
+  errorCode?: TranscriptErrorCode
+  queued?: boolean  // true if event was queued for later processing
+}
 
 /**
  * Explicit transcription event types (not using startsWith for safety)
@@ -76,14 +96,18 @@ export const transcriptRecordService = {
       // Resolve actual database meetingId from roomName
       const actualMeetingId = await this.resolveMeetingId(meetingId)
       if (!actualMeetingId) {
+        // Queue the event for later processing
+        await this.queuePendingEvent(meetingId, event)
         console.warn(
-          `[transcriptRecordService] Meeting not found for roomName: ${meetingId}`
+          `[transcriptRecordService] ⚠️ Meeting not found for roomName: ${meetingId}. ` +
+          `Event queued for later processing.`
         )
         return {
-          success: true, // Don't fail - meeting may not exist yet
+          success: true, // Queued successfully
           eventId: event.eventId,
           eventType: event.type,
-        }
+          queued: true,
+        } as TranscriptProcessingResult
       }
 
       if (on) {
@@ -156,14 +180,18 @@ export const transcriptRecordService = {
       // Resolve actual database meetingId from roomName
       const actualMeetingId = await this.resolveMeetingId(meetingId)
       if (!actualMeetingId) {
+        // Queue the event for later processing
+        await this.queuePendingEvent(meetingId, event)
         console.warn(
-          `[transcriptRecordService] Meeting not found for roomName: ${meetingId}`
+          `[transcriptRecordService] ⚠️ Transcript chunk QUEUED: Meeting not found for roomName: ${meetingId}. ` +
+          `MessageID: ${messageID}`
         )
         return {
-          success: true,
+          success: true, // Queued successfully
           eventId: event.eventId,
           eventType: event.type,
-        }
+          queued: true,
+        } as TranscriptProcessingResult
       }
 
       // Ensure transcript exists (auto-create if needed)
@@ -183,11 +211,10 @@ export const transcriptRecordService = {
       // Guard: validate participant exists
       const participantData = participant ?? { id: 'SYSTEM', displayName: 'System' }
 
-      // Resolve speakerUserId from MeetingParticipant if possible
-      const speakerUserId = await this.resolveUserIdFromParticipant(
-        actualMeetingId,
-        participantData.id
-      )
+      // Use userId from payload if available (only local authenticated participants have this)
+      // Falls back to trying to resolve from MeetingParticipant records
+      const speakerUserId = (participant as { userId?: string })?.userId
+        || await this.resolveUserIdFromParticipant(actualMeetingId, participantData.id)
 
       // Create or update segment (use messageId for upsert)
       await prisma.transcriptSegment.upsert({
@@ -215,8 +242,9 @@ export const transcriptRecordService = {
             isFinal: true,
             confidence: 1.0,
           }),
-          // Update speaker name if changed
+          // Update speaker name and userId if changed
           speakerName: participantData.displayName,
+          ...(speakerUserId && { speakerUserId }),
         },
       })
 
@@ -371,5 +399,92 @@ export const transcriptRecordService = {
     }
 
     return orphaned.length
+  },
+
+  /**
+   * Queue a transcription event for later processing
+   * Called when meeting doesn't exist yet
+   * TTL: 1 hour from creation
+   */
+  async queuePendingEvent(roomName: string, event: SerializableEvent): Promise<void> {
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000) // 1 hour TTL
+
+    try {
+      await prisma.pendingTranscriptionEvent.upsert({
+        where: { eventId: event.eventId },
+        create: {
+          roomName,
+          eventId: event.eventId,
+          payload: JSON.parse(JSON.stringify(event)),
+          expiresAt,
+        },
+        update: {
+          retryCount: { increment: 1 },
+        },
+      })
+      console.log(`[transcriptRecordService] Queued pending event: ${event.eventId} for room: ${roomName}`)
+    } catch (error) {
+      console.error('[transcriptRecordService] Failed to queue pending event:', error)
+      throw error
+    }
+  },
+
+  /**
+   * Replay pending transcription events for a room
+   * Called when meeting.started is processed
+   */
+  async replayPendingEvents(roomName: string): Promise<number> {
+    const pendingEvents = await prisma.pendingTranscriptionEvent.findMany({
+      where: {
+        roomName,
+        expiresAt: { gt: new Date() }, // Not expired
+      },
+      orderBy: { createdAt: 'asc' },
+    })
+
+    if (pendingEvents.length === 0) {
+      return 0
+    }
+
+    console.log(`[transcriptRecordService] Replaying ${pendingEvents.length} pending events for room: ${roomName}`)
+
+    let processed = 0
+    for (const pending of pendingEvents) {
+      try {
+        const event = pending.payload as unknown as SerializableEvent
+        const result = await this.handleEvent(event)
+
+        if (result.success && !('queued' in result && result.queued)) {
+          // Successfully processed - delete from pending
+          await prisma.pendingTranscriptionEvent.delete({
+            where: { id: pending.id },
+          })
+          processed++
+        }
+      } catch (error) {
+        console.error(`[transcriptRecordService] Error replaying event ${pending.eventId}:`, error)
+      }
+    }
+
+    console.log(`[transcriptRecordService] Replayed ${processed}/${pendingEvents.length} pending events`)
+    return processed
+  },
+
+  /**
+   * Cleanup expired pending events
+   * Called periodically or on server startup
+   */
+  async cleanupExpiredPendingEvents(): Promise<number> {
+    const result = await prisma.pendingTranscriptionEvent.deleteMany({
+      where: {
+        expiresAt: { lt: new Date() },
+      },
+    })
+
+    if (result.count > 0) {
+      console.log(`[transcriptRecordService] Cleaned up ${result.count} expired pending events`)
+    }
+
+    return result.count
   },
 }

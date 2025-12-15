@@ -179,8 +179,9 @@ export interface TranscriptionChunkReceivedPayload {
     language: string
     messageID: string
     participant: {
-        id: string
+        id: string           // Jitsi participant ID
         displayName: string
+        userId?: string      // Better Auth userId (nullable for guests)
     }
     final: string
     stable: string
