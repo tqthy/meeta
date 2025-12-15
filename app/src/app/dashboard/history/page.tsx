@@ -456,7 +456,7 @@ export default function DashboardHistoryPage() {
                                         </div>
 
                                         {/* Action Button */}
-                                        <div className="ml-4">
+                                        <div className="ml-4 flex flex-col gap-2">
                                             {meeting.status === 'ACTIVE' ? (
                                                 <Button asChild>
                                                     <Link
@@ -475,6 +475,17 @@ export default function DashboardHistoryPage() {
                                                         href={`/meeting/${meeting.roomName}`}
                                                     >
                                                         Join When Ready
+                                                    </Link>
+                                                </Button>
+                                            ) : meeting.status === 'ENDED' ? (
+                                                <Button
+                                                    variant="outline"
+                                                    asChild
+                                                >
+                                                    <Link
+                                                        href={`/dashboard/history/${meeting.id}`}
+                                                    >
+                                                        View Details
                                                     </Link>
                                                 </Button>
                                             ) : null}
