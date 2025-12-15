@@ -277,6 +277,82 @@ export default function JitsiMeetingPage() {
         api.addListener('incomingMessage', (event: IncomingMessageEvent) => {
             console.log('[Jitsi Event] incomingMessage:', event)
         })
+
+        // ====================================================================
+        // Transcription Events (for transcript persistence)
+        // ====================================================================
+
+        // transcribingStatusChanged - Transcription started/stopped
+        api.addListener(
+            'transcribingStatusChanged',
+            (event: { on: boolean }) => {
+                console.log('[Jitsi Event] transcribingStatusChanged:', event)
+                meetingEventEmitter.emitTranscribingStatusChanged(
+                    meetingId,
+                    event.on
+                )
+            }
+        )
+
+        // transcriptionChunkReceived - New transcription chunk
+        api.addListener(
+            'transcriptionChunkReceived',
+            (event: {
+                language: string
+                messageID: string
+                participant: { id: string; name?: string } | null
+                final: string
+                stable: string
+                unstable: string
+            }) => {
+                console.log('[Jitsi Event] transcriptionChunkReceived:', event)
+
+                // Guard: validate participant exists
+                const participant = event.participant ?? null
+                if (!participant?.id) {
+                    console.warn(
+                        '[Jitsi] Transcript chunk without participant, using SYSTEM'
+                    )
+                }
+
+                // Only emit if there's meaningful text
+                const text = event.final || event.stable
+                if (!text?.trim()) return
+
+                meetingEventEmitter.emitTranscriptionChunkReceived(
+                    meetingId,
+                    event.language || 'vi-VN',
+                    event.messageID,
+                    {
+                        id: participant?.id || 'SYSTEM',
+                        displayName: participant?.name || 'System',
+                    },
+                    event.final || '',
+                    event.stable || '',
+                    event.unstable || ''
+                )
+            }
+        )
+
+        // recordingStatusChanged - Recording started/stopped
+        api.addListener(
+            'recordingStatusChanged',
+            (event: {
+                on: boolean
+                mode: string
+                error?: string
+                transcription: boolean
+            }) => {
+                console.log('[Jitsi Event] recordingStatusChanged:', event)
+                meetingEventEmitter.emitRecordingStatusChanged(
+                    meetingId,
+                    event.on,
+                    event.mode,
+                    event.transcription,
+                    event.error
+                )
+            }
+        )
     }
 
     if (!isMounted) {

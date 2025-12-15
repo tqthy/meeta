@@ -150,6 +150,7 @@ export const meetingRecordService = {
 
     /**
      * Process meeting.started event
+     * Uses upsert pattern to handle both new meetings and rejoining existing ones
      */
     async processMeetingStarted(payload: MeetingStartedPayload): Promise<void> {
         const validation = validateRequiredFields(payload, [
@@ -173,70 +174,97 @@ export const meetingRecordService = {
             validHostId = hostExists ? payload.hostUserId : null
         }
 
-        const existingRoomWithSameName = await prisma.meeting.findFirst({
+        // Check for existing active meeting with same roomName
+        const existingActiveRoom = await prisma.meeting.findFirst({
             where: {
                 roomName: payload.roomName,
-                status: {
-                    in: [MeetingStatus.ACTIVE, MeetingStatus.SCHEDULED],
-                },
+                status: MeetingStatus.ACTIVE,
             },
-            select: { id: true, status: true },
+            select: { id: true },
         })
 
-        if (existingRoomWithSameName) {
-            throw new Error(`Cannot create new room: ${existingRoomWithSameName.status} meeting already exists with room name ${payload.roomName}`)
+        if (existingActiveRoom) {
+            // Room already active, update host if needed and return
+            console.log(`[meetingRecordService] Rejoining active meeting: ${existingActiveRoom.id} (room: ${payload.roomName})`)
+            await prisma.meeting.update({
+                where: { id: existingActiveRoom.id },
+                data: {
+                    ...(validHostId && { hostId: validHostId }),
+                    ...(payload.title && { title: payload.title }),
+                },
+            })
+            return
         }
 
-        const generateUniqueMeetingId = (roomName: string): string => {
-            const randomSuffix = Math.random().toString(36).substring(2, 10)
-            return `${roomName}_${randomSuffix}`
+        // Check for scheduled meeting with same roomName - activate it
+        const existingScheduledRoom = await prisma.meeting.findFirst({
+            where: {
+                roomName: payload.roomName,
+                status: MeetingStatus.SCHEDULED,
+            },
+            select: { id: true },
+        })
+
+        if (existingScheduledRoom) {
+            console.log(`[meetingRecordService] Starting scheduled meeting: ${existingScheduledRoom.id}`)
+            await prisma.meeting.update({
+                where: { id: existingScheduledRoom.id },
+                data: {
+                    startedAt,
+                    status: MeetingStatus.ACTIVE,
+                    ...(validHostId && { hostId: validHostId }),
+                    ...(payload.title && { title: payload.title }),
+                },
+            })
+            return
         }
 
-        let meetingId = payload.meetingId
+        // No existing meeting, use meetingId (which is roomName from frontend)
+        // Check if meetingId already exists
         const existingMeeting = await prisma.meeting.findUnique({
-            where: { id: meetingId },
+            where: { id: payload.meetingId },
         })
 
         if (existingMeeting) {
-            if (existingMeeting.roomName === payload.roomName &&
-                (existingMeeting.status === MeetingStatus.ENDED || existingMeeting.status === MeetingStatus.CANCELLED)) {
-                meetingId = generateUniqueMeetingId(payload.roomName)
-            } else {
-                await prisma.meeting.update({
-                    where: { id: meetingId },
+            // Meeting exists with this ID, check status
+            if (existingMeeting.status === MeetingStatus.ENDED ||
+                existingMeeting.status === MeetingStatus.CANCELLED) {
+                // Previous meeting ended, create new one with unique ID
+                const newMeetingId = `${payload.roomName}_${Date.now()}`
+                console.log(`[meetingRecordService] Creating new meeting with ID: ${newMeetingId}`)
+                await prisma.meeting.create({
                     data: {
+                        id: newMeetingId,
+                        roomName: payload.roomName,
+                        title: payload.title || `Meeting ${payload.roomName}`,
+                        description: payload.description,
+                        hostId: validHostId,
                         startedAt,
                         status: MeetingStatus.ACTIVE,
-                        hostId: validHostId,
-                        ...(payload.title && { title: payload.title }),
-                        ...(payload.description && { description: payload.description }),
                     },
                 })
-                return
+            } else {
+                // Meeting is ACTIVE or SCHEDULED with same ID, update it
+                console.log(`[meetingRecordService] Updating existing meeting: ${existingMeeting.id}`)
+                await prisma.meeting.update({
+                    where: { id: existingMeeting.id },
+                    data: {
+                        startedAt: existingMeeting.startedAt || startedAt,
+                        status: MeetingStatus.ACTIVE,
+                        ...(validHostId && { hostId: validHostId }),
+                        ...(payload.title && { title: payload.title }),
+                    },
+                })
             }
-
-            // If SCHEDULED, update to ACTIVE
-            // if (existingMeeting.status === MeetingStatus.SCHEDULED) {
-            //     await prisma.meeting.update({
-            //         where: { id: existingMeeting.id },
-            //         data: {
-            //             startedAt: existingMeeting.startedAt || startedAt,
-            //             status: MeetingStatus.ACTIVE,
-            //             hostId: validHostId || undefined,
-            //             ...(payload.title && { title: payload.title }),
-            //             ...(payload.description && { description: payload.description }),
-            //         },
-            //     })
-            //     return
-            // }
-
+            return
         }
 
-        // No existing meeting, create new one
+        // Create new meeting
+        console.log(`[meetingRecordService] Creating new meeting: ${payload.meetingId} (room: ${payload.roomName})`)
         try {
             await prisma.meeting.create({
                 data: {
-                    id: meetingId,
+                    id: payload.meetingId,
                     roomName: payload.roomName,
                     title: payload.title || `Meeting ${payload.roomName}`,
                     description: payload.description,
@@ -248,27 +276,14 @@ export const meetingRecordService = {
         } catch (error: unknown) {
             const prismaError = error as { code?: string }
             if (prismaError?.code === 'P2002') {
-                meetingId = generateUniqueMeetingId(payload.roomName)
-                await prisma.meeting.create({
-                    data: {
-                        id: meetingId,
-                        roomName: payload.roomName,
-                        title: payload.title || `Meeting ${payload.roomName}`,
-                        description: payload.description,
-                        hostId: validHostId,
-                        startedAt,
-                        status: MeetingStatus.ACTIVE,
-                    },
-                })
-            } else if (prismaError?.code === 'P2025') {
+                // Unique constraint violation - meeting was created concurrently
+                console.log(`[meetingRecordService] Meeting created concurrently, updating: ${payload.meetingId}`)
                 await prisma.meeting.update({
-                    where: { id: meetingId },
+                    where: { id: payload.meetingId },
                     data: {
                         startedAt,
                         status: MeetingStatus.ACTIVE,
-                        hostId: validHostId,
-                        ...(payload.title && { title: payload.title }),
-                        ...(payload.description && { description: payload.description }),
+                        ...(validHostId && { hostId: validHostId }),
                     },
                 })
             } else {

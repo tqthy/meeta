@@ -84,7 +84,7 @@ export const participantRecordService = {
         const roomName = payload.meetingId
 
         // Find the active meeting with this roomName
-        const meeting = await prisma.meeting.findFirst({
+        let meeting = await prisma.meeting.findFirst({
             where: {
                 roomName,
                 status: MeetingStatus.ACTIVE,
@@ -94,10 +94,50 @@ export const participantRecordService = {
         })
 
         if (!meeting) {
-            throw new Error(
-                `No active meeting found with roomName: ${roomName}. ` +
-                `Cannot add participant without an active meeting session.`
+            // Meeting not found - this can happen if participant.joined arrives before meeting.started is processed
+            // Auto-create the meeting to handle this race condition
+            console.log(
+                `[participantRecordService] No active meeting found for roomName: ${roomName}. ` +
+                `Auto-creating meeting for participant: ${payload.participantId}`
             )
+
+            // Create meeting with roomName as ID (this matches what meetingRecordService does)
+            try {
+                const createdMeeting = await prisma.meeting.create({
+                    data: {
+                        id: roomName,
+                        roomName: roomName,
+                        title: `Meeting ${roomName}`,
+                        hostId: payload.userId || null,
+                        startedAt: new Date(payload.joinedAt),
+                        status: MeetingStatus.ACTIVE,
+                    },
+                })
+                meeting = { id: createdMeeting.id }
+            } catch (error: unknown) {
+                const prismaError = error as { code?: string }
+                if (prismaError?.code === 'P2002') {
+                    // Meeting was created concurrently, try to find it again
+                    meeting = await prisma.meeting.findFirst({
+                        where: {
+                            roomName,
+                            status: MeetingStatus.ACTIVE,
+                        },
+                        select: { id: true },
+                        orderBy: { createdAt: 'desc' },
+                    })
+
+                    if (!meeting) {
+                        console.warn(
+                            `[participantRecordService] Race condition: meeting created but not found. ` +
+                            `RoomName: ${roomName}, ParticipantId: ${payload.participantId}`
+                        )
+                        return // Skip this event
+                    }
+                } else {
+                    throw error
+                }
+            }
         }
 
         const dto: UpsertParticipantDTO = {

@@ -17,6 +17,7 @@ import type {
 import { isMeetingEvent, isParticipantEvent, isTrackEvent, isMediaEvent } from './types'
 import { meetingRecordService } from './meetingRecordService'
 import { participantRecordService } from './participantRecordService'
+import { transcriptRecordService, isTranscriptionEvent } from './transcriptRecordService'
 
 /**
  * Service for persisting and processing event logs
@@ -131,6 +132,9 @@ export const meetingLogService = {
                     eventId: event.eventId,
                     eventType: event.type,
                 }
+            } else if (isTranscriptionEvent(event)) {
+                // Transcription events are routed to transcriptRecordService
+                result = await transcriptRecordService.handleEvent(event)
             } else if (isMediaEvent(event)) {
                 // Media events (audio/video mute, screen share, etc.) are logged but not processed further
                 // They can be used for analytics and audit trails
