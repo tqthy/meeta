@@ -520,7 +520,7 @@ services:
     restart: ${RESTART_POLICY:-unless-stopped}
     ports:
       - "${JVB_PORT:-10000}:${JVB_PORT:-10000}/udp"
-      - "127.0.0.1:${JVB_COLIBRI_PORT:-8089}:8089"
+      - "127.0.0.1:${JVB_COLIBRI_PORT:-8080}:8080"
     volumes:
       - ${CONFIG}/jvb:/config:Z
     labels:
@@ -580,7 +580,7 @@ services:
       - XMPP_PORT
     healthcheck:
       test:
-        ["CMD-SHELL", "curl -f http://localhost:8089/about/health || exit 1"]
+        ["CMD-SHELL", "curl -f http://localhost:8080/about/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
