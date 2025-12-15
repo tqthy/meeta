@@ -1,0 +1,374 @@
+# AGENTS.md — Jitsi Meeting Module
+
+> **Audience**: AI Agents and Developers working on Jitsi iframe integration and meeting features.
+
+---
+
+## 1. Overview
+
+This module provides Next.js pages for Jitsi meeting functionality. It uses the `@jitsi/react-sdk` to embed Jitsi Meet in an iframe and captures events for persistence.
+
+### Module Structure
+
+```
+src/app/jitsi-meeting/
+├── [meetingId]/
+│   └── page.tsx          # Meeting room page (Jitsi iframe)
+├── create/
+│   └── page.tsx          # Meeting creation page
+├── AGENTS.md             # This file
+└── README.md             # Technical documentation
+```
+
+---
+
+## 2. Architecture
+
+### 2.1 Component Hierarchy
+
+```
+JitsiMeetingPage
+├── JitsiMeeting (from @jitsi/react-sdk)
+│   └── iframe (Jitsi Meet)
+└── Event Listeners
+    ├── videoConferenceJoined
+    ├── videoConferenceLeft
+    ├── participantJoined/Left
+    ├── transcriptionChunkReceived ← For transcript
+    └── transcribingStatusChanged  ← For transcript
+```
+
+### 2.2 Data Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     page.tsx                                 │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌──────────────────┐    ┌──────────────────────────────┐   │
+│  │  JitsiMeeting    │───▶│  onApiReady callback         │   │
+│  │  (iframe)        │    │  setupEventListeners(api)    │   │
+│  └──────────────────┘    └─────────────┬────────────────┘   │
+│                                        │                     │
+│                                        ▼                     │
+│                          ┌─────────────────────────────┐    │
+│                          │  meetingEventEmitter        │    │
+│                          │  .emitMeetingStarted()      │    │
+│                          │  .emitParticipantJoined()   │    │
+│                          │  .emitTranscriptionChunk()  │    │
+│                          └─────────────┬───────────────┘    │
+│                                        │                     │
+│                                        ▼                     │
+│                          ┌─────────────────────────────┐    │
+│                          │  useEventPersistence hook   │    │
+│                          │  Batches & sends to API     │    │
+│                          └─────────────────────────────┘    │
+│                                                              │
+└──────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 3. Jitsi SDK Integration
+
+### 3.1 Key Events to Handle
+
+Reference: [JitsiSDKAPI/EventListener.txt](../domains/meeting/JitsiSDKAPI/EventListener.txt)
+
+| Event | Payload | Use Case |
+|-------|---------|----------|
+| `videoConferenceJoined` | `{roomName, id, displayName, ...}` | Meeting started |
+| `videoConferenceLeft` | `{roomName}` | Meeting ended |
+| `participantJoined` | `{id, displayName}` | Track participants |
+| `participantLeft` | `{id}` | Track participants |
+| `transcribingStatusChanged` | `{on: boolean}` | **Transcript start/stop** |
+| `transcriptionChunkReceived` | `{language, messageID, participant, final, stable, unstable}` | **Transcript content** |
+| `audioMuteStatusChanged` | `{muted: boolean}` | Track states |
+| `videoMuteStatusChanged` | `{muted: boolean}` | Track states |
+
+### 3.2 Event Listener Template
+
+```typescript
+const setupEventListeners = (api: JitsiExternalAPI) => {
+  const getISOTimestamp = () => new Date().toISOString()
+
+  // ================================================================
+  // Meeting Events
+  // ================================================================
+  
+  api.addListener('videoConferenceJoined', (event: VideoConferenceJoinedEvent) => {
+    console.log('[Jitsi Event] videoConferenceJoined:', event)
+    meetingEventEmitter.emitMeetingStarted({
+      meetingId,
+      roomName: event.roomName || meetingId,
+      hostUserId: session?.user?.id || event.id,
+      title: `Meeting ${meetingId}`,
+      startedAt: getISOTimestamp(),
+    })
+  })
+
+  api.addListener('videoConferenceLeft', (event: VideoConferenceLeftEvent) => {
+    console.log('[Jitsi Event] videoConferenceLeft:', event)
+    meetingEventEmitter.emitMeetingEnded(meetingId)
+  })
+
+  // ================================================================
+  // Participant Events
+  // ================================================================
+  
+  api.addListener('participantJoined', (event: ParticipantJoinedEvent) => {
+    console.log('[Jitsi Event] participantJoined:', event)
+    meetingEventEmitter.emitParticipantJoined({
+      meetingId,
+      participantId: event.id,
+      displayName: event.displayName || 'Guest',
+      role: 'PARTICIPANT',
+      joinedAt: getISOTimestamp(),
+    })
+  })
+
+  api.addListener('participantLeft', (event: ParticipantLeftEvent) => {
+    console.log('[Jitsi Event] participantLeft:', event)
+    meetingEventEmitter.emitParticipantLeft(meetingId, event.id)
+  })
+
+  // ================================================================
+  // Transcription Events (NEW - for transcript persistence)
+  // ================================================================
+  
+  api.addListener('transcribingStatusChanged', (event: { on: boolean }) => {
+    console.log('[Jitsi Event] transcribingStatusChanged:', event)
+    meetingEventEmitter.emitTranscribingStatusChanged(meetingId, event.on)
+  })
+
+  api.addListener('transcriptionChunkReceived', (event: {
+    language: string
+    messageID: string
+    participant: { id: string; name?: string }
+    final: string
+    stable: string
+    unstable: string
+  }) => {
+    console.log('[Jitsi Event] transcriptionChunkReceived:', event)
+    
+    // Only emit if there's actual text content
+    if (event.final || event.stable) {
+      meetingEventEmitter.emitTranscriptionChunkReceived(
+        meetingId,
+        event.language,
+        event.messageID,
+        { 
+          id: event.participant.id, 
+          displayName: event.participant.name || 'Unknown' 
+        },
+        event.final,
+        event.stable,
+        event.unstable
+      )
+    }
+  })
+}
+```
+
+---
+
+## 4. TypeScript Types
+
+### 4.1 Jitsi Event Types
+
+Add to `src/types/jitsi-react-sdk.d.ts`:
+
+```typescript
+// Transcription event types
+export interface TranscribingStatusChangedEvent {
+  on: boolean
+}
+
+export interface TranscriptionChunkReceivedEvent {
+  language: string
+  messageID: string
+  participant: {
+    id: string
+    name?: string
+  }
+  final: string
+  stable: string
+  unstable: string
+}
+```
+
+### 4.2 Import Updates
+
+```typescript
+import type {
+  // Existing types...
+  JitsiExternalAPI,
+  VideoConferenceJoinedEvent,
+  VideoConferenceLeftEvent,
+  ParticipantJoinedEvent,
+  ParticipantLeftEvent,
+  // New types for transcription
+  TranscribingStatusChangedEvent,
+  TranscriptionChunkReceivedEvent,
+} from '@/types/jitsi-react-sdk'
+```
+
+---
+
+## 5. Implementation Checklist
+
+### 5.1 For Transcript Feature
+
+- [ ] Add `transcribingStatusChanged` listener in `page.tsx`
+- [ ] Add `transcriptionChunkReceived` listener in `page.tsx`
+- [ ] Add TypeScript types for transcription events
+- [ ] Test with Jitsi transcription enabled
+- [ ] Verify events flow to database
+
+### 5.2 Event Listener Setup
+
+```typescript
+// In jitsi-meeting/[meetingId]/page.tsx
+
+// Inside setupEventListeners function, add:
+
+// Transcription status
+api.addListener('transcribingStatusChanged', (event: TranscribingStatusChangedEvent) => {
+  console.log('[Jitsi Event] transcribingStatusChanged:', event)
+  meetingEventEmitter.emitTranscribingStatusChanged(meetingId, event.on)
+})
+
+// Transcription chunks
+api.addListener('transcriptionChunkReceived', (event: TranscriptionChunkReceivedEvent) => {
+  console.log('[Jitsi Event] transcriptionChunkReceived:', event)
+  meetingEventEmitter.emitTranscriptionChunkReceived(
+    meetingId,
+    event.language,
+    event.messageID,
+    { id: event.participant.id, displayName: event.participant.name || 'Unknown' },
+    event.final,
+    event.stable,
+    event.unstable
+  )
+})
+```
+
+---
+
+## 6. Jitsi Configuration
+
+### 6.1 Enable Transcription
+
+In Jitsi config or via `configOverwrite`:
+
+```typescript
+<JitsiMeeting
+  configOverwrite={{
+    // Enable transcription
+    transcription: {
+      enabled: true,
+      useAppLanguage: true,
+    },
+    // Enable subtitles button
+    toolbarButtons: [
+      // ... other buttons
+      'closedcaptions',
+    ],
+  }}
+  // ... other props
+/>
+```
+
+### 6.2 Commands for Transcription
+
+Reference: [JitsiSDKAPI/Commands.txt](../domains/meeting/JitsiSDKAPI/Commands.txt)
+
+```typescript
+// Toggle subtitles (starts transcription)
+api.executeCommand('toggleSubtitles')
+
+// Start recording with transcription
+api.executeCommand('startRecording', {
+  mode: 'file',
+  transcription: true,
+})
+
+// Stop transcription
+api.executeCommand('stopRecording', {
+  mode: 'file',
+  transcription: true,
+})
+```
+
+---
+
+## 7. Error Handling
+
+### 7.1 Common Issues
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| Transcription events not firing | Jitsi transcription disabled | Enable in Jitsi config |
+| Events not persisted | meetingId mismatch | Check roomName matches meetingId |
+| Duplicate events | Multiple listeners | Ensure single listener registration |
+
+### 7.2 Debug Logging
+
+Enable debug in `useEventPersistence`:
+
+```typescript
+useEventPersistence(meetingId, {
+  debug: true,
+  onEventsSent: (count) => {
+    console.log(`[Persistence] ${count} events sent`)
+  },
+  onError: (error) => {
+    console.error('[Persistence] Error:', error)
+  },
+})
+```
+
+---
+
+## 8. Testing
+
+### 8.1 Manual Testing
+
+1. Start a meeting in development
+2. Enable subtitles/transcription in Jitsi UI
+3. Speak to generate transcription
+4. Check console for `transcriptionChunkReceived` events
+5. Verify data in database (Prisma Studio)
+
+### 8.2 Mock Testing
+
+```typescript
+// Mock Jitsi API for testing
+const mockApi = {
+  addListener: jest.fn((event, callback) => {
+    if (event === 'transcriptionChunkReceived') {
+      // Simulate transcription chunk
+      callback({
+        language: 'en-US',
+        messageID: 'msg-123',
+        participant: { id: 'p1', name: 'Test User' },
+        final: 'Hello world',
+        stable: 'Hello',
+        unstable: 'He',
+      })
+    }
+  }),
+}
+```
+
+---
+
+## 9. Related Files
+
+- [Meeting Page](./[meetingId]/page.tsx)
+- [Create Page](./create/page.tsx)  
+- [Event Emitter](../../domains/meeting/services/meetingEventEmitter.ts)
+- [Event Persistence Hook](../../domains/meeting/hooks/useEventPersistence.ts)
+- [Transcript Service](../../domains/meeting/services/transcript/AGENTS.md)
+- [Jitsi SDK Events](../../domains/meeting/JitsiSDKAPI/EventListener.txt)
+- [Jitsi SDK Commands](../../domains/meeting/JitsiSDKAPI/Commands.txt)

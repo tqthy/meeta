@@ -37,6 +37,9 @@ export default function JitsiMeetingPage() {
             `Guest-${Math.random().toString(36).slice(2, 8)}`
     )
 
+    // Only render Jitsi after client-side mount to prevent hydration mismatch
+    const [isMounted, setIsMounted] = useState(false)
+
     // Reference to track if meeting has started
     const meetingStartedRef = useRef(false)
     const localParticipantIdRef = useRef<string | null>(null)
@@ -60,6 +63,10 @@ export default function JitsiMeetingPage() {
             router.replace('/dashboard')
         }
     }, [meetingId, router])
+
+    useEffect(() => {
+        setIsMounted(true)
+    }, [])
 
     /**
      * Setup event listeners for Jitsi API events and emit to database
@@ -270,6 +277,17 @@ export default function JitsiMeetingPage() {
         api.addListener('incomingMessage', (event: IncomingMessageEvent) => {
             console.log('[Jitsi Event] incomingMessage:', event)
         })
+    }
+
+    if (!isMounted) {
+        return (
+            <div
+                style={{ height: '100vh', width: '100%' }}
+                className="text-black flex items-center justify-center"
+            >
+                <p>Loading meeting...</p>
+            </div>
+        )
     }
 
     return (
