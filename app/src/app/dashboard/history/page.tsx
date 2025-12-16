@@ -46,6 +46,7 @@ export default function DashboardHistoryPage() {
             role: roleFilter,
             limit: pageSize,
             offset: page * pageSize,
+            filter: statusFilter,
         }),
         [statusFilter, roleFilter, page]
     )
@@ -63,9 +64,9 @@ export default function DashboardHistoryPage() {
             error: error?.message,
             meetingsCount: meetings?.length,
             meetings: meetings,
-            filters,
+            // filters,
         })
-    }, [isLoading, error, meetings, filters])
+    }, [isLoading, error, meetings])
 
     // Format duration
     const formatDuration = (seconds?: number) => {
@@ -91,12 +92,12 @@ export default function DashboardHistoryPage() {
                     className: 'text-gray-600 bg-gray-50 border-gray-200',
                     label: 'Ended',
                 }
-            case 'SCHEDULED':
-                return {
-                    icon: Calendar,
-                    className: 'text-blue-600 bg-blue-50 border-blue-200',
-                    label: 'Scheduled',
-                }
+            // case 'SCHEDULED':
+            //     return {
+            //         icon: Calendar,
+            //         className: 'text-blue-600 bg-blue-50 border-blue-200',
+            //         label: 'Scheduled',
+            //     }
             case 'CANCELLED':
                 return {
                     icon: XCircle,
@@ -121,7 +122,7 @@ export default function DashboardHistoryPage() {
                         Meeting History
                     </h1>
                     <p className="text-muted-foreground mt-1">
-                        View and manage your past and scheduled meetings
+                        View and manage your past meetings
                     </p>
                 </div>
                 <Button
@@ -139,7 +140,7 @@ export default function DashboardHistoryPage() {
 
             {/* Statistics */}
             {!statsLoading && stats && (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">
@@ -192,7 +193,7 @@ export default function DashboardHistoryPage() {
                             </div>
                         </CardContent>
                     </Card>
-                    <Card>
+                    {/* <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">
                                 Scheduled
@@ -204,12 +205,12 @@ export default function DashboardHistoryPage() {
                                 {stats.scheduledMeetings}
                             </div>
                         </CardContent>
-                    </Card>
+                    </Card> */}
                 </div>
             )}
 
-            {/* Filters */}
-            <Card>
+            
+            {/* <Card>
                 <CardHeader>
                     <CardTitle>Filters</CardTitle>
                     <CardDescription>
@@ -218,7 +219,6 @@ export default function DashboardHistoryPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="flex flex-wrap gap-3">
-                        {/* Status Filter */}
                         <div className="flex gap-2">
                             <span className="text-sm font-medium text-muted-foreground self-center">
                                 Status:
@@ -250,7 +250,6 @@ export default function DashboardHistoryPage() {
                             ))}
                         </div>
 
-                        {/* Role Filter */}
                         <div className="flex gap-2">
                             <span className="text-sm font-medium text-muted-foreground self-center">
                                 Role:
@@ -278,7 +277,8 @@ export default function DashboardHistoryPage() {
                         </div>
                     </div>
                 </CardContent>
-            </Card>
+                
+            </Card> */}
 
             {/* Meeting List */}
             {isLoading ? (
@@ -460,7 +460,7 @@ export default function DashboardHistoryPage() {
                                             {meeting.status === 'ACTIVE' ? (
                                                 <Button asChild>
                                                     <Link
-                                                        href={`/meeting/${meeting.roomName}`}
+                                                        href={`/jitsi-meeting/${meeting.roomName}`}
                                                     >
                                                         Join Meeting
                                                     </Link>

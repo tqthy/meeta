@@ -1,170 +1,114 @@
-import { auth } from '@/lib/auth'
-import { headers } from 'next/headers'
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card'
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Plus, Video, Calendar, Clock, Users } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Video, Keyboard, Loader2 } from 'lucide-react'
 import Link from 'next/link'
+import { checkMeetingExists } from '@/domains/meeting/hooks/useFetchingMeeting'
 
-export default async function DashboardPage() {
-    const session = await auth.api.getSession({
-        headers: await headers(),
-    })
+export default function DashboardPage() {
+    const [meetingCode, setMeetingCode] = useState('')
+    const [isChecking, setIsChecking] = useState(false)
+    const router = useRouter()
 
-    const user = session?.user
+    const handleJoinMeeting = async () => {
+        if (!meetingCode.trim()) return
+        
+        // Extract meeting ID from URL if full URL pasted
+        let meetingId = meetingCode.trim()
+        
+        // Handle full URLs
+        if (meetingId.includes('/')) {
+            const parts = meetingId.split('/')
+            meetingId = parts[parts.length - 1]
+        }
+        
+        setIsChecking(true)
+        
+        try {
+            const result = await checkMeetingExists(meetingId)
+            
+            if (result.exists) {
+                router.push(`/jitsi-meeting/${result.roomName || meetingId}`)
+            } else {
+                alert('Meeting not found. Please check the meeting code and try again.')
+            }
+        } catch {
+            alert('Failed to check meeting. Please try again.')
+        } finally {
+            setIsChecking(false)
+        }
+    }
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' && !isChecking) {
+            handleJoinMeeting()
+        }
+    }
 
     return (
-        <div className="space-y-8">
-            {/* Welcome Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">
-                        Welcome back, {user?.name?.split(' ')[0] || 'there'}!
+        <main className="flex-1 overflow-auto bg-background">
+            <div className="max-w-3xl mx-auto px-6 py-12">
+                {/* Hero Section - Matching Sidebar UI MainContent */}
+                <div className="text-center mb-8">
+                    <h1 className="text-4xl text-foreground mb-3">
+                        Premium video meetings
+                        <br />
+                        for everyone
                     </h1>
-                    <p className="text-muted-foreground mt-1">
-                        Here&apos;s what&apos;s happening with your meetings
-                        today.
+                    <p className="text-muted-foreground">
+                        Connect, collaborate and celebrate from anywhere with Meeta.
                     </p>
                 </div>
-                <Button asChild size="lg">
-                    <Link href="/jitsi-meeting/create">
-                        <Plus className="mr-2 h-4 w-4" />
-                        New Meeting
-                    </Link>
-                </Button>
-            </div>
 
-            {/* Quick Actions */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                    <Link href="/jitsi-meeting/create">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">
-                                Start Instant Meeting
-                            </CardTitle>
-                            <Video className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-xs text-muted-foreground">
-                                Start a meeting right now
-                            </p>
-                        </CardContent>
-                    </Link>
-                </Card>
-
-                <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                    <Link href="/jitsi-meeting/create?schedule=true">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">
-                                Schedule Meeting
-                            </CardTitle>
-                            <Calendar className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-xs text-muted-foreground">
-                                Plan a meeting for later
-                            </p>
-                        </CardContent>
-                    </Link>
-                </Card>
-
-                <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                    <Link href="/meeting">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">
-                                Join Meeting
-                            </CardTitle>
-                            <Users className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-xs text-muted-foreground">
-                                Enter a meeting code
-                            </p>
-                        </CardContent>
-                    </Link>
-                </Card>
-
-                <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                    <Link href="/dashboard/history">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">
-                                View History
-                            </CardTitle>
-                            <Clock className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-xs text-muted-foreground">
-                                Past meetings & transcripts
-                            </p>
-                        </CardContent>
-                    </Link>
-                </Card>
-            </div>
-
-            {/* Stats Overview */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Upcoming Meetings</CardTitle>
-                        <CardDescription>
-                            Your scheduled meetings
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex items-center justify-center h-32 text-muted-foreground">
-                            <p className="text-sm">No upcoming meetings</p>
+                {/* Action Buttons - Matching Sidebar UI layout */}
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
+                    <Button asChild size="lg">
+                        <Link href="/jitsi-meeting/create">
+                            <Video className="mr-2 h-5 w-5" />
+                            New meeting
+                        </Link>
+                    </Button>
+                    
+                    {/* Meeting Code Input */}
+                    <div className="flex items-center gap-2">
+                        <div className="relative">
+                            <Keyboard className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                                type="text"
+                                placeholder="Enter a code or link"
+                                value={meetingCode}
+                                onChange={(e) => setMeetingCode(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                className="pl-9 w-64"
+                            />
                         </div>
-                    </CardContent>
-                </Card>
+                        <Button 
+                            variant="outline" 
+                            onClick={handleJoinMeeting}
+                            disabled={!meetingCode.trim() || isChecking}
+                        >
+                            {isChecking ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                'Join'
+                            )}
+                        </Button>
+                    </div>
+                </div>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Recent Activity</CardTitle>
-                        <CardDescription>Your latest meetings</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex items-center justify-center h-32 text-muted-foreground">
-                            <p className="text-sm">No recent meetings</p>
-                        </div>
-                    </CardContent>
-                </Card>
+                <hr className="border-border mb-12" />
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Quick Stats</CardTitle>
-                        <CardDescription>
-                            This month&apos;s overview
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-4">
-                            <div className="flex justify-between items-center">
-                                <span className="text-sm text-muted-foreground">
-                                    Total Meetings
-                                </span>
-                                <span className="font-medium">0</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                                <span className="text-sm text-muted-foreground">
-                                    Hours in Calls
-                                </span>
-                                <span className="font-medium">0h</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                                <span className="text-sm text-muted-foreground">
-                                    Transcripts Generated
-                                </span>
-                                <span className="font-medium">0</span>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                {/* Learn More Footer */}
+                <div className="text-center mt-8">
+                    <Link href="/dashboard/history" className="text-primary hover:underline">
+                        View all your meetings
+                    </Link>
+                    <span className="text-muted-foreground"> in history</span>
+                </div>
             </div>
-        </div>
+        </main>
     )
 }

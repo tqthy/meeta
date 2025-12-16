@@ -29,6 +29,40 @@ const fetcher = async (url: string) => {
     return res.json()
 }
 
+// ============================================================================
+// Meeting Validation
+// ============================================================================
+
+export interface MeetingCheckResult {
+    exists: boolean
+    meetingId?: string
+    roomName?: string
+    status?: 'ACTIVE' | 'ENDED' | 'SCHEDULED' | 'CANCELLED'
+    error?: string
+}
+
+/**
+ * Check if a meeting room exists by room name or meeting ID
+ * @param roomNameOrId - The room name or meeting ID to check
+ * @returns Promise resolving to check result
+ */
+export async function checkMeetingExists(roomNameOrId: string): Promise<MeetingCheckResult> {
+    try {
+        const res = await fetch(`/api/meetings/check?roomName=${encodeURIComponent(roomNameOrId)}`)
+
+        if (!res.ok) {
+            return { exists: false, error: 'Failed to check meeting' }
+        }
+
+        return await res.json()
+    } catch (error) {
+        return {
+            exists: false,
+            error: error instanceof Error ? error.message : 'Unknown error'
+        }
+    }
+}
+
 /**
  * Default SWR configuration
  */
