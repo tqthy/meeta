@@ -4,30 +4,46 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Video, Keyboard } from 'lucide-react'
+import { Video, Keyboard, Loader2 } from 'lucide-react'
 import Link from 'next/link'
+import { checkMeetingExists } from '@/domains/meeting/hooks/useFetchingMeeting'
 
 export default function DashboardPage() {
     const [meetingCode, setMeetingCode] = useState('')
+    const [isChecking, setIsChecking] = useState(false)
     const router = useRouter()
 
-    const handleJoinMeeting = () => {
-        if (meetingCode.trim()) {
-            // Extract meeting ID from URL if full URL pasted
-            let meetingId = meetingCode.trim()
+    const handleJoinMeeting = async () => {
+        if (!meetingCode.trim()) return
+        
+        // Extract meeting ID from URL if full URL pasted
+        let meetingId = meetingCode.trim()
+        
+        // Handle full URLs
+        if (meetingId.includes('/')) {
+            const parts = meetingId.split('/')
+            meetingId = parts[parts.length - 1]
+        }
+        
+        setIsChecking(true)
+        
+        try {
+            const result = await checkMeetingExists(meetingId)
             
-            // Handle full URLs
-            if (meetingId.includes('/')) {
-                const parts = meetingId.split('/')
-                meetingId = parts[parts.length - 1]
+            if (result.exists) {
+                router.push(`/jitsi-meeting/${result.roomName || meetingId}`)
+            } else {
+                alert('Meeting not found. Please check the meeting code and try again.')
             }
-            
-            router.push(`/jitsi-meeting/${meetingId}`)
+        } catch {
+            alert('Failed to check meeting. Please try again.')
+        } finally {
+            setIsChecking(false)
         }
     }
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter') {
+        if (e.key === 'Enter' && !isChecking) {
             handleJoinMeeting()
         }
     }
@@ -72,9 +88,13 @@ export default function DashboardPage() {
                         <Button 
                             variant="outline" 
                             onClick={handleJoinMeeting}
-                            disabled={!meetingCode.trim()}
+                            disabled={!meetingCode.trim() || isChecking}
                         >
-                            Join
+                            {isChecking ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                'Join'
+                            )}
                         </Button>
                     </div>
                 </div>
