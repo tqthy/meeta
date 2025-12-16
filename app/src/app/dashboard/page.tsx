@@ -12,28 +12,29 @@ export default function DashboardPage() {
     const [meetingCode, setMeetingCode] = useState('')
     const [isChecking, setIsChecking] = useState(false)
     const router = useRouter()
-
     const handleJoinMeeting = async () => {
         if (!meetingCode.trim()) return
-        
+
         // Extract meeting ID from URL if full URL pasted
         let meetingId = meetingCode.trim()
-        
+
         // Handle full URLs
         if (meetingId.includes('/')) {
             const parts = meetingId.split('/')
             meetingId = parts[parts.length - 1]
         }
-        
+
         setIsChecking(true)
-        
+
         try {
             const result = await checkMeetingExists(meetingId)
-            
+
             if (result.exists) {
                 router.push(`/jitsi-meeting/${result.roomName || meetingId}`)
             } else {
-                alert('Meeting not found. Please check the meeting code and try again.')
+                alert(
+                    'Meeting not found. Please check the meeting code and try again.'
+                )
             }
         } catch {
             alert('Failed to check meeting. Please try again.')
@@ -59,7 +60,8 @@ export default function DashboardPage() {
                         for everyone
                     </h1>
                     <p className="text-muted-foreground">
-                        Connect, collaborate and celebrate from anywhere with Meeta.
+                        Connect, collaborate and celebrate from anywhere with
+                        Meeta.
                     </p>
                 </div>
 
@@ -71,7 +73,7 @@ export default function DashboardPage() {
                             New meeting
                         </Link>
                     </Button>
-                    
+
                     {/* Meeting Code Input */}
                     <div className="flex items-center gap-2">
                         <div className="relative">
@@ -85,8 +87,8 @@ export default function DashboardPage() {
                                 className="pl-9 w-64"
                             />
                         </div>
-                        <Button 
-                            variant="outline" 
+                        <Button
+                            variant="outline"
                             onClick={handleJoinMeeting}
                             disabled={!meetingCode.trim() || isChecking}
                         >
@@ -103,7 +105,10 @@ export default function DashboardPage() {
 
                 {/* Learn More Footer */}
                 <div className="text-center mt-8">
-                    <Link href="/dashboard/history" className="text-primary hover:underline">
+                    <Link
+                        href="/dashboard/history"
+                        className="text-primary hover:underline"
+                    >
                         View all your meetings
                     </Link>
                     <span className="text-muted-foreground"> in history</span>

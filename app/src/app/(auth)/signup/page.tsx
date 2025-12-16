@@ -9,11 +9,11 @@ import {
     CardTitle,
 } from '@/components/ui/card'
 import { OAuthButtons } from '@/components/auth/oauth-buttons'
-import { EmailLoginForm } from '@/components/auth/email-login-form'
+import { EmailSignupForm } from '@/components/auth/email-signup-form'
 import { Video } from 'lucide-react'
 import Link from 'next/link'
 
-export default async function LoginPage() {
+export default async function SignupPage() {
     const session = await auth.api.getSession({
         headers: await headers(),
     })
@@ -34,13 +34,15 @@ export default async function LoginPage() {
                             <span className="text-2xl font-bold">Meeta</span>
                         </div>
                     </div>
-                    <CardTitle className="text-2xl">Welcome back</CardTitle>
+                    <CardTitle className="text-2xl">
+                        Create an account
+                    </CardTitle>
                     <CardDescription>
-                        Sign in to your account to continue
+                        Enter your details to get started
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <EmailLoginForm />
+                    <EmailSignupForm />
                     <div className="relative">
                         <div className="absolute inset-0 flex items-center">
                             <span className="w-full border-t" />

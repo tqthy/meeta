@@ -27,7 +27,7 @@ export const auth = betterAuth({
             maxAge: 60 * 5, // 5 minutes
         },
     },
-    trustedOrigins: [process.env.BETTER_AUTH_URL || 'http://localhost:3000'],
+    trustedOrigins: ['*'],
 })
 
 export type Session = typeof auth.$Infer.Session
