@@ -17,6 +17,7 @@ import {
     useRemoteTracks,
     useEventPersistence,
 } from '@/domains/meeting/hooks'
+import { useMeetingDetails } from '@/domains/meeting/hooks/useFetchingMeeting'
 import { trackService } from '@/domains/meeting/services'
 import { useSession } from '@/lib/auth-client'
 
@@ -51,6 +52,10 @@ export default function MeetingPage() {
     const localTracks = useLocalTracks()
     const remoteTracks = useRemoteTracks()
 
+    // Fetch meeting details to get the actual roomName
+    const { meeting: meetingData, isLoading: isMeetingLoading } = useMeetingDetails(meetingId)
+    const roomName = meetingData?.roomName || meetingId
+
     // Event persistence
     const { flushEvents } = useEventPersistence(meetingId, {
         debug: process.env.NODE_ENV === 'development',
@@ -83,15 +88,17 @@ export default function MeetingPage() {
         if (
             hasInitialized &&
             meetingId &&
+            roomName &&
+            !isMeetingLoading &&
             userName &&
             !meeting.isConnected &&
             !meeting.isConnecting
         ) {
-            console.log('[MeetingPage] 🚀 Joining meeting:', meetingId)
+            console.log('[MeetingPage] 🚀 Joining meeting:', meetingId, 'with roomName:', roomName)
             meeting.joinMeeting(
                 meetingId,
                 userName,
-                meetingId,
+                roomName, // Use roomName from database
                 userId,
                 undefined,
                 undefined
@@ -100,6 +107,8 @@ export default function MeetingPage() {
     }, [
         hasInitialized,
         meetingId,
+        roomName,
+        isMeetingLoading,
         userName,
         userId,
         meeting,

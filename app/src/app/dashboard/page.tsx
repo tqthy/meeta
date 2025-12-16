@@ -9,29 +9,29 @@ import Link from 'next/link'
 import { checkMeetingExists } from '@/domains/meeting/hooks/useFetchingMeeting'
 
 export default function DashboardPage() {
-    const [meetingCode, setMeetingCode] = useState('')
+    const [meetingName, setMeetingName] = useState('')
     const [isChecking, setIsChecking] = useState(false)
     const router = useRouter()
 
     const handleJoinMeeting = async () => {
-        if (!meetingCode.trim()) return
+        if (!meetingName.trim()) return
         
         // Extract meeting ID from URL if full URL pasted
-        let meetingId = meetingCode.trim()
+        let processdMeetingName = meetingName.trim()
         
         // Handle full URLs
-        if (meetingId.includes('/')) {
-            const parts = meetingId.split('/')
-            meetingId = parts[parts.length - 1]
+        if (processdMeetingName.includes('/')) {
+            const parts = processdMeetingName.split('/')
+            processdMeetingName = parts[parts.length - 1]
         }
         
         setIsChecking(true)
         
         try {
-            const result = await checkMeetingExists(meetingId)
+            const result = await checkMeetingExists(processdMeetingName)
             
             if (result.exists) {
-                router.push(`/jitsi-meeting/${result.roomName || meetingId}`)
+                router.push(`/jitsi-meeting/${result.meetingId}`)
             } else {
                 alert('Meeting not found. Please check the meeting code and try again.')
             }
@@ -79,8 +79,8 @@ export default function DashboardPage() {
                             <Input
                                 type="text"
                                 placeholder="Enter a code or link"
-                                value={meetingCode}
-                                onChange={(e) => setMeetingCode(e.target.value)}
+                                value={meetingName}
+                                onChange={(e) => setMeetingName(e.target.value)}
                                 onKeyDown={handleKeyDown}
                                 className="pl-9 w-64"
                             />
@@ -88,7 +88,7 @@ export default function DashboardPage() {
                         <Button 
                             variant="outline" 
                             onClick={handleJoinMeeting}
-                            disabled={!meetingCode.trim() || isChecking}
+                            disabled={!meetingName.trim() || isChecking}
                         >
                             {isChecking ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />

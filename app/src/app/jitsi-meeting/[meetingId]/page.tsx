@@ -5,6 +5,7 @@ import { JitsiMeeting } from '@jitsi/react-sdk'
 import { useParams, useRouter } from 'next/navigation'
 import { useSession } from '@/lib/auth-client'
 import { useEventPersistence } from '@/domains/meeting/hooks/useEventPersistence'
+import { useMeetingDetails } from '@/domains/meeting/hooks/useFetchingMeeting'
 import { meetingEventEmitter } from '@/domains/meeting/services/meetingEventEmitter'
 import type {
     JitsiExternalAPI,
@@ -30,6 +31,10 @@ export default function JitsiMeetingPage() {
     const router = useRouter()
     const meetingId = (params as { meetingId?: string })?.meetingId || ''
     const { data: session } = useSession()
+
+    // Fetch meeting details to get the actual roomName
+    const { meeting, isLoading: isMeetingLoading } = useMeetingDetails(meetingId)
+    const roomName = meeting?.roomName || meetingId
 
     const [displayName] = useState(
         () =>
@@ -93,9 +98,9 @@ export default function JitsiMeetingPage() {
                     meetingStartedRef.current = true
                     meetingEventEmitter.emitMeetingStarted({
                         meetingId,
-                        roomName: event.roomName || meetingId,
+                        roomName: roomName, // Use roomName from database
                         hostUserId: session?.user?.id || event.id, // Use authenticated userId or fallback to participant ID
-                        title: `Meeting ${meetingId}`,
+                        title: meeting?.title || `Meeting ${meetingId}`,
                         startedAt: getISOTimestamp(),
                     })
                 }
@@ -386,7 +391,7 @@ export default function JitsiMeetingPage() {
         )
     }
 
-    if (!isMounted) {
+    if (!isMounted || isMeetingLoading) {
         return (
             <div
                 style={{ height: '100vh', width: '100%' }}
@@ -401,7 +406,7 @@ export default function JitsiMeetingPage() {
         <div style={{ height: '100vh', width: '100%' }} className="text-black">
             <JitsiMeeting
                 domain={domain}
-                roomName={meetingId}
+                roomName={roomName}
                 configOverwrite={{
                     startWithAudioMuted: false,
                     disableModeratorIndicator: false,

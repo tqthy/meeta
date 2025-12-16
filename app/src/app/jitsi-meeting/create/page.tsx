@@ -1,16 +1,41 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Video } from 'lucide-react'
+import { Video, Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 export default function JitsiMeetingCreatePage() {
     const router = useRouter()
     const [roomName, setRoomName] = useState('')
+    const [isCreating, setIsCreating] = useState(false)
 
-    const handleJoinRoom = () => {
-        if (!roomName) return
-        router.push(`/jitsi-meeting/${encodeURIComponent(roomName)}`)
+    const handleJoinRoom = async () => {
+        if (!roomName || isCreating) return
+        
+        setIsCreating(true)
+        
+        try {
+            // Create or find meeting and get the database meetingId
+            const response = await fetch('/api/meetings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ roomName, title: roomName })
+            })
+            
+            if (!response.ok) {
+                throw new Error('Failed to create meeting')
+            }
+            
+            const { meetingId } = await response.json()
+            
+            // Navigate with the database meetingId
+            router.push(`/jitsi-meeting/${meetingId}`)
+        } catch (error) {
+            console.error('Error creating meeting:', error)
+            alert('Failed to create meeting. Please try again.')
+        } finally {
+            setIsCreating(false)
+        }
     }
 
     return (
@@ -69,14 +94,21 @@ export default function JitsiMeetingCreatePage() {
                     <button
                         type="button"
                         onClick={handleJoinRoom}
-                        disabled={!roomName}
-                        className={`w-full py-3 px-6 rounded-lg font-semibold text-lg transition ${
-                            !roomName
+                        disabled={!roomName || isCreating}
+                        className={`w-full py-3 px-6 rounded-lg font-semibold text-lg transition flex items-center justify-center gap-2 ${
+                            !roomName || isCreating
                                 ? 'dark:bg-gray-600 dark:text-gray-400 dark:cursor-not-allowed bg-gray-300 text-gray-500 cursor-not-allowed'
                                 : 'bg-indigo-600 text-white hover:bg-indigo-700'
                         }`}
                     >
-                        Enter Room
+                        {isCreating ? (
+                            <>
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                                Creating...
+                            </>
+                        ) : (
+                            'Enter Room'
+                        )}
                     </button>
 
                     {!roomName && (
