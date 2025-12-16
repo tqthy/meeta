@@ -281,7 +281,7 @@ export default function MeetingDetailPage() {
             </div>
 
             {/* Meeting Info Cards */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {/* Duration */}
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -330,7 +330,7 @@ export default function MeetingDetailPage() {
                 </Card>
 
                 {/* Transcript Status */}
-                <Card>
+                {/* <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">
                             Transcript
@@ -363,7 +363,7 @@ export default function MeetingDetailPage() {
                             </div>
                         )}
                     </CardContent>
-                </Card>
+                </Card> */}
             </div>
 
             {/* Host & Participants */}
@@ -376,67 +376,74 @@ export default function MeetingDetailPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-3">
-                        {/* Host */}
-                        {meeting.host && (
-                            <div className="flex items-center gap-3 p-2 rounded-lg bg-blue-50 dark:bg-blue-950">
-                                <Avatar className="h-8 w-8">
-                                    <Image
-                                        src={
-                                            meeting.host.image ||
-                                            `https://api.dicebear.com/7.x/initials/svg?seed=${meeting.host.name || meeting.host.email}`
-                                        }
-                                        alt={meeting.host.name || 'Host'}
-                                        width={32}
-                                        height={32}
-                                    />
-                                </Avatar>
-                                <div className="flex-1">
-                                    <p className="font-medium">
-                                        {meeting.host.name || meeting.host.email}
-                                    </p>
-                                    <p className="text-sm text-muted-foreground">
-                                        {meeting.host.email}
-                                    </p>
-                                </div>
-                                <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded">
-                                    Host
-                                </span>
-                            </div>
-                        )}
+                        {/* Deduplicated participants - merge by displayName, keep earliest join and latest left */}
+                        {(() => {
+                            // Deduplicate participants by displayName
+                            const uniqueParticipants = meeting.participants.reduce((acc, p) => {
+                                const existing = acc.find(ep => ep.displayName === p.displayName)
+                                if (existing) {
+                                    // Keep earliest joinedAt and latest leftAt
+                                    if (new Date(p.joinedAt) < new Date(existing.joinedAt)) {
+                                        existing.joinedAt = p.joinedAt
+                                    }
+                                    if (p.leftAt && (!existing.leftAt || new Date(p.leftAt) > new Date(existing.leftAt))) {
+                                        existing.leftAt = p.leftAt
+                                    }
+                                } else {
+                                    acc.push({ ...p })
+                                }
+                                return acc
+                            }, [] as typeof meeting.participants)
 
-                        {/* Participants */}
-                        {meeting.participants.map((participant) => (
-                            <div
-                                key={participant.id}
-                                className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted"
-                            >
-                                <Avatar className="h-8 w-8">
-                                    <div className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-600">
-                                        <User className="h-4 w-4" />
-                                    </div>
-                                </Avatar>
-                                <div className="flex-1">
-                                    <p className="font-medium">
-                                        {participant.displayName}
+                            if (uniqueParticipants.length === 0) {
+                                return (
+                                    <p className="text-muted-foreground text-center py-4">
+                                        No participants recorded
                                     </p>
-                                    <p className="text-xs text-muted-foreground">
-                                        Joined {formatDistanceToNow(new Date(participant.joinedAt), { addSuffix: true })}
-                                        {participant.leftAt && (
-                                            <> · Left {formatDistanceToNow(new Date(participant.leftAt), { addSuffix: true })}</>
+                                )
+                            }
+
+                            return uniqueParticipants.map((participant) => {
+                                // Check if this participant is the host
+                                const isHost = meeting.host && (
+                                    participant.displayName === meeting.host.name ||
+                                    participant.email === meeting.host.email
+                                )
+                                
+                                return (
+                                    <div
+                                        key={participant.id}
+                                        className={`flex items-center gap-3 p-2 rounded-lg ${
+                                            isHost ? 'bg-blue-50 dark:bg-blue-950' : 'hover:bg-muted'
+                                        }`}
+                                    >
+                                        <Avatar className="h-8 w-8">
+                                            <div className={`w-full h-full flex items-center justify-center ${
+                                                isHost ? 'bg-blue-200 text-blue-700' : 'bg-gray-200 text-gray-600'
+                                            }`}>
+                                                <User className="h-4 w-4" />
+                                            </div>
+                                        </Avatar>
+                                        <div className="flex-1">
+                                            <p className="font-medium">
+                                                {participant.displayName}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                Joined {formatDistanceToNow(new Date(participant.joinedAt), { addSuffix: true })}
+                                                {participant.leftAt && (
+                                                    <> · Left {formatDistanceToNow(new Date(participant.leftAt), { addSuffix: true })}</>
+                                                )}
+                                            </p>
+                                        </div>
+                                        {isHost && (
+                                            <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                                                Host
+                                            </span>
                                         )}
-                                    </p>
-                                </div>
-                                <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                                    {participant.role}
-                                </span>
-                            </div>
-                        ))}
-
-                        {meeting.participants.length === 0 && !meeting.host && (
-                            <p className="text-muted-foreground text-center py-4">
-                                No participants recorded
-                            </p>
-                        )}
+                                    </div>
+                                )
+                            })
+                        })()}
                     </div>
                 </CardContent>
             </Card>
@@ -456,13 +463,13 @@ export default function MeetingDetailPage() {
                                     : 'No transcript available for this meeting'}
                             </CardDescription>
                         </div>
-                        {transcript && (
+                        {/* {transcript && (
                             <div
                                 className={`flex items-center gap-1 px-2 py-1 rounded text-sm ${getTranscriptStatusBadge(transcript.status).className}`}
                             >
                                 {transcript.status}
                             </div>
-                        )}
+                        )} */}
                     </div>
                 </CardHeader>
                 <CardContent>

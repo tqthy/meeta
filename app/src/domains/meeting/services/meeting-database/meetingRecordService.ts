@@ -276,6 +276,9 @@ export const meetingRecordService = {
 
     /**
      * Process meeting.ended event
+     * 
+     * The meetingId from frontend is actually roomName (Jitsi room name).
+     * We need to find the active meeting by roomName first.
      */
     async processMeetingEnded(payload: MeetingEndedPayload): Promise<void> {
         const validation = validateRequiredFields(payload, ['meetingId', 'endedAt'])
@@ -285,6 +288,38 @@ export const meetingRecordService = {
         }
 
         const endedAt = new Date(payload.endedAt)
+
+        // Frontend sends roomName as meetingId, so find active meeting by roomName first
+        const activeMeeting = await prisma.meeting.findFirst({
+            where: {
+                roomName: payload.meetingId,
+                status: MeetingStatus.ACTIVE,
+            },
+            select: { id: true, startedAt: true },
+        })
+
+        if (activeMeeting) {
+            // Calculate duration if startedAt exists
+            let duration = payload.duration
+            if (!duration && activeMeeting.startedAt) {
+                duration = Math.round((endedAt.getTime() - activeMeeting.startedAt.getTime()) / 1000)
+            }
+
+            console.log(`[meetingRecordService] Ending meeting: ${activeMeeting.id} (room: ${payload.meetingId})`)
+
+            await prisma.meeting.update({
+                where: { id: activeMeeting.id },
+                data: {
+                    endedAt,
+                    duration,
+                    status: MeetingStatus.ENDED,
+                },
+            })
+            return
+        }
+
+        // Fallback: try direct ID lookup (for legacy or direct meeting IDs)
+        console.log(`[meetingRecordService] No active meeting found for room '${payload.meetingId}', trying direct ID lookup`)
 
         const updateData: UpdateMeetingDTO = {
             endedAt,

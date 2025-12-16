@@ -320,6 +320,9 @@ export const transcriptRecordService = {
 
   /**
    * Resolve actual database meeting ID from roomName
+   * 
+   * Includes ENDED status because transcript finalization may happen
+   * after the meeting has already ended (transcribingStatusChanged fires after meetingEnded)
    */
   async resolveMeetingId(roomName: string): Promise<string | null> {
     if (!roomName) return null
@@ -327,7 +330,7 @@ export const transcriptRecordService = {
     const meeting = await prisma.meeting.findFirst({
       where: {
         roomName,
-        status: { in: ['ACTIVE', 'SCHEDULED'] },
+        status: { in: ['ACTIVE', 'SCHEDULED', 'ENDED'] },
       },
       select: { id: true },
       orderBy: { createdAt: 'desc' },

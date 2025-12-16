@@ -129,6 +129,10 @@ export default function JitsiMeetingPage() {
                     )
                 }
 
+                // Emit transcribingStatusChanged(false) to complete transcript
+                // This ensures transcript status changes from PROCESSING to COMPLETED
+                meetingEventEmitter.emitTranscribingStatusChanged(meetingId, false)
+
                 // Emit meeting ended
                 meetingEventEmitter.emitMeetingEnded(meetingId)
             }
@@ -137,8 +141,8 @@ export default function JitsiMeetingPage() {
         // readyToClose - Final cleanup
         api.addListener('readyToClose', () => {
             console.log('[Jitsi Event] readyToClose')
-            // navigate back to create page after meeting closes
-            router.push('/jitsi-meeting/create')
+            // Navigate to dashboard after meeting closes
+            router.push('/dashboard')
         })
 
         // ====================================================================
@@ -146,10 +150,19 @@ export default function JitsiMeetingPage() {
         // ====================================================================
 
         // participantJoined - Remote participant joined
+        // Note: This event fires for ALL participants, including local user
+        // We skip local user since we already emit their join in videoConferenceJoined
         api.addListener(
             'participantJoined',
             (event: ParticipantJoinedEvent) => {
                 console.log('[Jitsi Event] participantJoined:', event)
+                
+                // Skip local participant to avoid duplication
+                if (event.id === localParticipantIdRef.current) {
+                    console.log('[Jitsi Event] Skipping local participant join (already emitted)')
+                    return
+                }
+
                 meetingEventEmitter.emitParticipantJoined({
                     meetingId,
                     participantId: event.id,
