@@ -48,3 +48,8 @@ export {
     type TranscriptErrorCode,
     type TranscriptProcessingResult,
 } from './transcriptRecordService'
+export {
+    summaryService,
+    type SummaryGenerationResult,
+    type GeneratedSummary,
+} from './summaryService'

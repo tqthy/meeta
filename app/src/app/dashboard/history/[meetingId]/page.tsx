@@ -532,7 +532,7 @@ export default function MeetingDetailPage() {
                 {/* Summary Section - Only show if transcript exists */}
                 {transcript && transcript.segments.length > 0 && (
                     <div className="mb-6">
-                        <SummarizeSection />
+                        <SummarizeSection meetingId={meetingId} />
                     </div>
                 )}
             </div>
