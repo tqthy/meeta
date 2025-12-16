@@ -131,12 +131,12 @@ export default function MeetingDetailPage() {
                     className: 'text-gray-600 bg-gray-50 border-gray-200',
                     label: 'Ended',
                 }
-            case 'SCHEDULED':
-                return {
-                    icon: Calendar,
-                    className: 'text-blue-600 bg-blue-50 border-blue-200',
-                    label: 'Scheduled',
-                }
+            // case 'SCHEDULED':
+            //     return {
+            //         icon: Calendar,
+            //         className: 'text-blue-600 bg-blue-50 border-blue-200',
+            //         label: 'Scheduled',
+            //     }
             case 'CANCELLED':
                 return {
                     icon: XCircle,
