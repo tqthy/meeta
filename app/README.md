@@ -31,7 +31,7 @@ A Next.js-based video meeting application with real-time collaboration features 
     - `summary.prisma` - AI-generated meeting summaries
 - **Dashboard**: Meeting management interface with creation and listing
 - **Meeting History**: View past meetings with transcript segments
-- **Unique Meeting IDs**: Each meeting session gets a unique `{roomName}_{uuid}` ID
+- **Unique Meeting IDs**: Each meeting session gets a unique `{uuid}` ID
 - **Room UI**: Video meeting room with participant grid, chat panel, and controls
 
 ### In Progress
