@@ -28,7 +28,7 @@ import {
 } from 'lucide-react'
 import { format, formatDistanceToNow } from 'date-fns'
 import Link from 'next/link'
-import Image from 'next/image'
+import { SummarizeSection } from '@/components/dashboard/summarize-section'
 
 // Types for API response
 interface MeetingHost {
@@ -447,6 +447,9 @@ export default function MeetingDetailPage() {
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Summarize Section */}
+            <SummarizeSection />    
 
             {/* Transcript */}
             <Card>

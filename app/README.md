@@ -55,6 +55,13 @@ A Next.js-based video meeting application with real-time collaboration features 
 
 /src
   /components                 # React components
+    /dashboard                # Dashboard-specific UI components
+      /summarize-section.tsx  # Meeting summary placeholder UI
+    /layout                   # Layout components
+      /sidebar.tsx            # Collapsible navigation sidebar
+      /dashboard-shell.tsx    # Dashboard container with state
+      /dashboard-header.tsx   # Top header with menu toggle
+      /user-menu.tsx          # User dropdown menu
     /meeting                  # Meeting-specific components
       /video-tile             # Video tile sub-components
     /ui                       # Reusable UI primitives
@@ -70,6 +77,38 @@ A Next.js-based video meeting application with real-time collaboration features 
 
 /prisma                       # Database schema and migrations
 ```
+
+---
+
+## UI Architecture
+
+The dashboard UI is based on the **Sidebar UI with History** design pattern:
+
+### Layout Structure
+- **Collapsible Sidebar** - Navigation with toggle functionality
+- **Dashboard Header** - Menu toggle, search, and user actions
+- **Main Content** - Centered content area with max-width constraint
+
+### Key Components
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `DashboardShell` | `components/layout/` | Container managing sidebar collapse state |
+| `Sidebar` | `components/layout/` | Collapsible navigation with Meetings, History, Settings |
+| `DashboardHeader` | `components/layout/` | Top bar with menu toggle and actions |
+| `SummarizeSection` | `components/dashboard/` | Placeholder for meeting summarization UI |
+
+### Theme System
+Colors are defined using HSL tokens in `globals.css`:
+- Primary color: Blue brand color
+- Support for automatic dark mode
+- All components use semantic tokens for consistency
+
+### Summarize Section
+Location: `/dashboard` page (bottom of main content)
+- UI-only placeholder for future meeting summarization feature
+- Button click currently logs to console
+- No backend integration implemented
 
 ---
 

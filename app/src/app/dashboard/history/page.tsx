@@ -46,6 +46,7 @@ export default function DashboardHistoryPage() {
             role: roleFilter,
             limit: pageSize,
             offset: page * pageSize,
+            filter: statusFilter,
         }),
         [statusFilter, roleFilter, page]
     )
@@ -63,9 +64,9 @@ export default function DashboardHistoryPage() {
             error: error?.message,
             meetingsCount: meetings?.length,
             meetings: meetings,
-            filters,
+            // filters,
         })
-    }, [isLoading, error, meetings, filters])
+    }, [isLoading, error, meetings])
 
     // Format duration
     const formatDuration = (seconds?: number) => {
@@ -208,8 +209,8 @@ export default function DashboardHistoryPage() {
                 </div>
             )}
 
-            {/* Filters */}
-            <Card>
+            
+            {/* <Card>
                 <CardHeader>
                     <CardTitle>Filters</CardTitle>
                     <CardDescription>
@@ -218,7 +219,6 @@ export default function DashboardHistoryPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="flex flex-wrap gap-3">
-                        {/* Status Filter */}
                         <div className="flex gap-2">
                             <span className="text-sm font-medium text-muted-foreground self-center">
                                 Status:
@@ -250,7 +250,6 @@ export default function DashboardHistoryPage() {
                             ))}
                         </div>
 
-                        {/* Role Filter */}
                         <div className="flex gap-2">
                             <span className="text-sm font-medium text-muted-foreground self-center">
                                 Role:
@@ -278,7 +277,8 @@ export default function DashboardHistoryPage() {
                         </div>
                     </div>
                 </CardContent>
-            </Card>
+                
+            </Card> */}
 
             {/* Meeting List */}
             {isLoading ? (
