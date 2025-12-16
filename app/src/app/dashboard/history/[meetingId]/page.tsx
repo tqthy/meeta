@@ -213,31 +213,37 @@ export default function MeetingDetailPage() {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
+            <main className="flex-1 overflow-auto bg-background">
+                <div className="max-w-4xl mx-auto px-6 py-12">
+                    <div className="flex items-center justify-center py-12">
+                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    </div>
+                </div>
+            </main>
         )
     }
 
     if (error || !data?.meeting) {
         return (
-            <div className="space-y-6">
-                <Button
-                    variant="ghost"
-                    onClick={() => router.back()}
-                    className="mb-4"
-                >
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back to History
-                </Button>
-                <Card className="border-red-200 bg-red-50">
-                    <CardContent className="pt-6">
-                        <p className="text-red-600">
-                            {error?.message || 'Meeting not found'}
-                        </p>
-                    </CardContent>
-                </Card>
-            </div>
+            <main className="flex-1 overflow-auto bg-background">
+                <div className="max-w-4xl mx-auto px-6 py-12">
+                    <Button
+                        variant="ghost"
+                        onClick={() => router.back()}
+                        className="mb-4"
+                    >
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Back to History
+                    </Button>
+                    <Card className="border-red-200 bg-red-50">
+                        <CardContent className="pt-6">
+                            <p className="text-red-600">
+                                {error?.message || 'Meeting not found'}
+                            </p>
+                        </CardContent>
+                    </Card>
+                </div>
+            </main>
         )
     }
 
@@ -246,9 +252,10 @@ export default function MeetingDetailPage() {
     const StatusIcon = statusBadge.icon
 
     return (
-        <div className="space-y-6">
+        <main className="flex-1 overflow-auto bg-background">
+            <div className="max-w-4xl mx-auto px-6 py-12">
             {/* Back Button */}
-            <Button variant="ghost" asChild>
+            <Button variant="ghost" asChild className="mb-6">
                 <Link href="/dashboard/history">
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Back to History
@@ -256,118 +263,63 @@ export default function MeetingDetailPage() {
             </Button>
 
             {/* Meeting Header */}
-            <div className="flex items-start justify-between">
-                <div>
-                    <div className="flex items-center gap-3 mb-2">
-                        <h1 className="text-3xl font-bold tracking-tight">
-                            {meeting.title}
-                        </h1>
-                        <div
-                            className={`flex items-center gap-1 px-2 py-1 rounded-md border text-sm font-medium ${statusBadge.className}`}
-                        >
-                            <StatusIcon className="h-4 w-4" />
-                            {statusBadge.label}
-                        </div>
+            <div className="text-center mb-8">
+                <div className="flex items-center justify-center gap-3 mb-3">
+                    <h1 className="text-4xl text-foreground">
+                        {meeting.title}
+                    </h1>
+                    <div
+                        className={`flex items-center gap-1 px-2 py-1 rounded-md border text-sm font-medium ${statusBadge.className}`}
+                    >
+                        <StatusIcon className="h-4 w-4" />
+                        {statusBadge.label}
                     </div>
-                    {meeting.description && (
-                        <p className="text-muted-foreground">
-                            {meeting.description}
-                        </p>
-                    )}
-                    <p className="text-sm text-muted-foreground mt-1">
-                        Room: <code className="bg-muted px-1 py-0.5 rounded">{meeting.roomName}</code>
+                </div>
+                {meeting.description && (
+                    <p className="text-muted-foreground mb-2">
+                        {meeting.description}
                     </p>
+                )}
+                <p className="text-sm text-muted-foreground">
+                    Room: <code className="bg-muted px-1 py-0.5 rounded">{meeting.roomName}</code>
+                </p>
+            </div>
+
+            <hr className="border-border mb-8" />
+
+            {/* Meeting Info - Compact Layout */}
+            <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground mb-8">
+                {/* Duration */}
+                <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    <span className="font-medium">{formatDuration(meeting.duration)}</span>
+                </div>
+
+                <span className="text-muted-foreground/50">•</span>
+
+                {/* Participants */}
+                <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    <span className="font-medium">
+                        {meeting.participants.length} participant{meeting.participants.length !== 1 ? 's' : ''}
+                    </span>
+                </div>
+
+                <span className="text-muted-foreground/50">•</span>
+
+                {/* Started At */}
+                <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    <span className="font-medium">
+                        {meeting.startedAt
+                            ? format(new Date(meeting.startedAt), 'PPp')
+                            : 'Not started'}
+                    </span>
                 </div>
             </div>
 
-            {/* Meeting Info Cards */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {/* Duration */}
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">
-                            Duration
-                        </CardTitle>
-                        <Clock className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">
-                            {formatDuration(meeting.duration)}
-                        </div>
-                    </CardContent>
-                </Card>
-
-                {/* Participants */}
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">
-                            Participants
-                        </CardTitle>
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">
-                            {meeting.participants.length}
-                        </div>
-                    </CardContent>
-                </Card>
-
-                {/* Started At */}
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">
-                            Started
-                        </CardTitle>
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-lg font-bold">
-                            {meeting.startedAt
-                                ? format(new Date(meeting.startedAt), 'PPp')
-                                : 'N/A'}
-                        </div>
-                    </CardContent>
-                </Card>
-
-                {/* Transcript Status */}
-                {/* <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">
-                            Transcript
-                        </CardTitle>
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        {transcript ? (
-                            <div className="flex items-center gap-2">
-                                {(() => {
-                                    const tStatusBadge = getTranscriptStatusBadge(
-                                        transcript.status
-                                    )
-                                    const TStatusIcon = tStatusBadge.icon
-                                    return (
-                                        <>
-                                            <TStatusIcon
-                                                className={`h-5 w-5 ${tStatusBadge.className}`}
-                                            />
-                                            <span className="text-lg font-bold">
-                                                {transcript.wordCount || 0} words
-                                            </span>
-                                        </>
-                                    )
-                                })()}
-                            </div>
-                        ) : (
-                            <div className="text-lg font-bold text-muted-foreground">
-                                No transcript
-                            </div>
-                        )}
-                    </CardContent>
-                </Card> */}
-            </div>
-
             {/* Host & Participants */}
-            <Card>
+            <Card className="mb-6">
                 <CardHeader>
                     <CardTitle>Participants</CardTitle>
                     <CardDescription>
@@ -448,11 +400,8 @@ export default function MeetingDetailPage() {
                 </CardContent>
             </Card>
 
-            {/* Summarize Section */}
-            <SummarizeSection />    
-
             {/* Transcript */}
-            <Card>
+            <Card className="mb-6">
                 <CardHeader>
                     <div className="flex items-center justify-between">
                         <div>
@@ -466,13 +415,15 @@ export default function MeetingDetailPage() {
                                     : 'No transcript available for this meeting'}
                             </CardDescription>
                         </div>
-                        {/* {transcript && (
-                            <div
-                                className={`flex items-center gap-1 px-2 py-1 rounded text-sm ${getTranscriptStatusBadge(transcript.status).className}`}
+                        {transcript && transcript.segments.length > 0 && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => console.log('Summarize with AI clicked')}
                             >
-                                {transcript.status}
-                            </div>
-                        )} */}
+                                ✨ Summarize with AI
+                            </Button>
+                        )}
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -521,6 +472,14 @@ export default function MeetingDetailPage() {
                     )}
                 </CardContent>
             </Card>
-        </div>
+
+            {/* Summary Section - Only show if transcript exists */}
+            {transcript && transcript.segments.length > 0 && (
+                <div className="mb-6">
+                    <SummarizeSection />
+                </div>
+            )}
+            </div>
+        </main>
     )
 }

@@ -9,14 +9,12 @@ import type { MeetingHistoryFilters } from '@/domains/meeting/hooks/useFetchingM
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Avatar } from '@/components/ui/avatar'
 import {
-    Calendar,
     Clock,
     Users,
     Video,
@@ -24,9 +22,8 @@ import {
     XCircle,
     PlayCircle,
     Loader2,
-    RefreshCw,
 } from 'lucide-react'
-import { formatDistanceToNow, format } from 'date-fns'
+import { formatDistanceToNow } from 'date-fns'
 import Link from 'next/link'
 import Image from 'next/image'
 
@@ -34,8 +31,8 @@ type StatusFilter = 'all' | 'ACTIVE' | 'ENDED' | 'SCHEDULED' | 'CANCELLED'
 type RoleFilter = 'all' | 'host' | 'participant'
 
 export default function DashboardHistoryPage() {
-    const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
-    const [roleFilter, setRoleFilter] = useState<RoleFilter>('all')
+    const [statusFilter] = useState<StatusFilter>('all')
+    const [roleFilter] = useState<RoleFilter>('all')
     const [page, setPage] = useState(0)
     const pageSize = 20
 
@@ -52,7 +49,7 @@ export default function DashboardHistoryPage() {
     )
 
     // Fetch data
-    const { meetings, isLoading, error, mutate } = useMeetingHistory(filters, {
+    const { meetings, isLoading, error } = useMeetingHistory(filters, {
         refreshInterval: 10000, // Refresh every 10 seconds
     })
     const { stats, isLoading: statsLoading } = useUserMeetingStats()
@@ -114,33 +111,21 @@ export default function DashboardHistoryPage() {
     }
 
     return (
-        <div className="space-y-6">
+        <main className="flex-1 overflow-auto bg-background">
+            <div className="max-w-4xl mx-auto px-6 py-12">
             {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">
-                        Meeting History
-                    </h1>
-                    <p className="text-muted-foreground mt-1">
-                        View and manage your past meetings
-                    </p>
-                </div>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => mutate()}
-                    disabled={isLoading}
-                >
-                    <RefreshCw
-                        className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`}
-                    />
-                    Refresh
-                </Button>
+            <div className="text-center mb-8">
+                <h1 className="text-4xl text-foreground mb-3">
+                    Meeting History
+                </h1>
+                <p className="text-muted-foreground">
+                    View and manage your past meetings
+                </p>
             </div>
 
             {/* Statistics */}
             {!statsLoading && stats && (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <div className="grid gap-4 grid-cols-2 lg:grid-cols-4 mb-8">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">
@@ -280,6 +265,8 @@ export default function DashboardHistoryPage() {
                 
             </Card> */}
 
+            <hr className="border-border mb-8" />
+
             {/* Meeting List */}
             {isLoading ? (
                 <div className="flex items-center justify-center py-12">
@@ -308,7 +295,7 @@ export default function DashboardHistoryPage() {
                     </CardContent>
                 </Card>
             ) : (
-                <div className="space-y-4">
+                <div className="space-y-4 mb-6">
                     {meetings.map((meeting) => {
                         const statusBadge = getStatusBadge(meeting.status)
                         const StatusIcon = statusBadge.icon
@@ -318,181 +305,112 @@ export default function DashboardHistoryPage() {
                             meeting.createdAt
 
                         return (
-                            <Card
+                            <Link
                                 key={meeting.id}
-                                className="hover:shadow-md transition-shadow"
+                                href={meeting.status === 'ACTIVE' ? `/jitsi-meeting/${meeting.roomName}` : `/dashboard/history/${meeting.id}`}
                             >
-                                <CardContent className="pt-6">
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-3 mb-2">
-                                                <h3 className="text-lg font-semibold">
-                                                    {meeting.title}
-                                                </h3>
-                                                <div
-                                                    className={`flex items-center gap-1 px-2 py-1 rounded-md border text-xs font-medium ${statusBadge.className}`}
-                                                >
-                                                    <StatusIcon className="h-3 w-3" />
-                                                    {statusBadge.label}
-                                                </div>
-                                                <div className="px-2 py-1 bg-gray-100 rounded-md text-xs font-medium dark:text-black">
-                                                    {meeting.userRole}
-                                                </div>
-                                            </div>
-
-                                            {meeting.description && (
-                                                <p className="text-sm text-muted-foreground mb-3">
-                                                    {meeting.description}
-                                                </p>
-                                            )}
-
-                                            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                                                {/* Host */}
-                                                {meeting.host && (
-                                                    <div className="flex items-center gap-2">
-                                                        <Avatar className="h-5 w-5">
-                                                            <Image
-                                                                src={
-                                                                    meeting.host
-                                                                        .image ||
-                                                                    `https://api.dicebear.com/7.x/initials/svg?seed=${meeting.host.name || meeting.host.email}`
-                                                                }
-                                                                alt={
-                                                                    meeting.host
-                                                                        .name ||
-                                                                    'Host'
-                                                                }
-                                                                width={20}
-                                                                height={20}
-                                                            />
-                                                        </Avatar>
-                                                        <span>
-                                                            Host:{' '}
-                                                            {meeting.host
-                                                                .name ||
-                                                                meeting.host
-                                                                    .email}
-                                                        </span>
+                                <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                                    <CardContent className="pt-6">
+                                        <div className="flex items-start justify-between">
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-3 mb-2">
+                                                    <h3 className="text-lg font-semibold">
+                                                        {meeting.title}
+                                                    </h3>
+                                                    <div
+                                                        className={`flex items-center gap-1 px-2 py-1 rounded-md border text-xs font-medium ${statusBadge.className}`}
+                                                    >
+                                                        <StatusIcon className="h-3 w-3" />
+                                                        {statusBadge.label}
                                                     </div>
+                                                    <div className="px-2 py-1 bg-gray-100 rounded-md text-xs font-medium dark:text-black">
+                                                        {meeting.userRole}
+                                                    </div>
+                                                </div>
+
+                                                {meeting.description && (
+                                                    <p className="text-sm text-muted-foreground mb-3">
+                                                        {meeting.description}
+                                                    </p>
                                                 )}
 
-                                                {/* Participants */}
-                                                <div className="flex items-center gap-1">
-                                                    <Users className="h-4 w-4" />
-                                                    <span>
-                                                        {
-                                                            meeting.participantCount
-                                                        }{' '}
-                                                        participant
-                                                        {meeting.participantCount !==
-                                                        1
-                                                            ? 's'
-                                                            : ''}
-                                                    </span>
-                                                </div>
+                                                {/* Compact meeting info row */}
+                                                <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                                                    {/* Host */}
+                                                    {meeting.host && (
+                                                        <div className="flex items-center gap-2">
+                                                            <Avatar className="h-5 w-5">
+                                                                <Image
+                                                                    src={
+                                                                        meeting.host
+                                                                            .image ||
+                                                                        `https://api.dicebear.com/7.x/initials/svg?seed=${meeting.host.name || meeting.host.email}`
+                                                                    }
+                                                                    alt={
+                                                                        meeting.host
+                                                                            .name ||
+                                                                        'Host'
+                                                                    }
+                                                                    width={20}
+                                                                    height={20}
+                                                                />
+                                                            </Avatar>
+                                                            <span>
+                                                                {meeting.host.name || meeting.host.email}
+                                                            </span>
+                                                        </div>
+                                                    )}
 
-                                                {/* Time */}
-                                                <div className="flex items-center gap-1">
-                                                    <Clock className="h-4 w-4" />
-                                                    <span>
-                                                        {formatDistanceToNow(
-                                                            new Date(
-                                                                meetingTime
-                                                            ),
-                                                            { addSuffix: true }
-                                                        )}
-                                                    </span>
-                                                </div>
+                                                    <span className="text-muted-foreground/50">•</span>
 
-                                                {/* Duration */}
-                                                {meeting.duration && (
+                                                    {/* Participants */}
                                                     <div className="flex items-center gap-1">
-                                                        <Video className="h-4 w-4" />
+                                                        <Users className="h-4 w-4" />
                                                         <span>
-                                                            {formatDuration(
-                                                                meeting.duration
+                                                            {meeting.participantCount}
+                                                        </span>
+                                                    </div>
+
+                                                    <span className="text-muted-foreground/50">•</span>
+
+                                                    {/* Time */}
+                                                    <div className="flex items-center gap-1">
+                                                        <Clock className="h-4 w-4" />
+                                                        <span>
+                                                            {formatDistanceToNow(
+                                                                new Date(meetingTime),
+                                                                { addSuffix: true }
                                                             )}
                                                         </span>
                                                     </div>
-                                                )}
+
+                                                    {/* Duration */}
+                                                    {meeting.duration && (
+                                                        <>
+                                                            <span className="text-muted-foreground/50">•</span>
+                                                            <div className="flex items-center gap-1">
+                                                                <Video className="h-4 w-4" />
+                                                                <span>
+                                                                    {formatDuration(meeting.duration)}
+                                                                </span>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
                                             </div>
 
-                                            {/* Timestamps */}
-                                            <div className="mt-3 text-xs text-muted-foreground space-y-1">
-                                                {meeting.scheduledAt && (
-                                                    <div>
-                                                        Scheduled:{' '}
-                                                        {format(
-                                                            new Date(
-                                                                meeting.scheduledAt
-                                                            ),
-                                                            'PPp'
-                                                        )}
-                                                    </div>
-                                                )}
-                                                {meeting.startedAt && (
-                                                    <div>
-                                                        Started:{' '}
-                                                        {format(
-                                                            new Date(
-                                                                meeting.startedAt
-                                                            ),
-                                                            'PPp'
-                                                        )}
-                                                    </div>
-                                                )}
-                                                {meeting.endedAt && (
-                                                    <div>
-                                                        Ended:{' '}
-                                                        {format(
-                                                            new Date(
-                                                                meeting.endedAt
-                                                            ),
-                                                            'PPp'
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
+                                            {/* Join button only for active meetings */}
+                                            {meeting.status === 'ACTIVE' && (
+                                                <div className="ml-4">
+                                                    <Button size="sm">
+                                                        Join
+                                                    </Button>
+                                                </div>
+                                            )}
                                         </div>
-
-                                        {/* Action Button */}
-                                        <div className="ml-4 flex flex-col gap-2">
-                                            {meeting.status === 'ACTIVE' ? (
-                                                <Button asChild>
-                                                    <Link
-                                                        href={`/jitsi-meeting/${meeting.roomName}`}
-                                                    >
-                                                        Join Meeting
-                                                    </Link>
-                                                </Button>
-                                            ) : meeting.status ===
-                                              'SCHEDULED' ? (
-                                                <Button
-                                                    variant="outline"
-                                                    asChild
-                                                >
-                                                    <Link
-                                                        href={`/meeting/${meeting.roomName}`}
-                                                    >
-                                                        Join When Ready
-                                                    </Link>
-                                                </Button>
-                                            ) : meeting.status === 'ENDED' ? (
-                                                <Button
-                                                    variant="outline"
-                                                    asChild
-                                                >
-                                                    <Link
-                                                        href={`/dashboard/history/${meeting.id}`}
-                                                    >
-                                                        View Details
-                                                    </Link>
-                                                </Button>
-                                            ) : null}
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                                    </CardContent>
+                                </Card>
+                            </Link>
                         )
                     })}
                 </div>
@@ -500,7 +418,7 @@ export default function DashboardHistoryPage() {
 
             {/* Pagination */}
             {!isLoading && meetings.length > 0 && (
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between mt-8">
                     <Button
                         variant="outline"
                         onClick={() => setPage((p) => Math.max(0, p - 1))}
@@ -520,6 +438,7 @@ export default function DashboardHistoryPage() {
                     </Button>
                 </div>
             )}
-        </div>
+            </div>
+        </main>
     )
 }
