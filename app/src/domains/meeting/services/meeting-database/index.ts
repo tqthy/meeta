@@ -41,3 +41,10 @@ export { meetingRecordService } from './meetingRecordService'
 export { participantRecordService } from './participantRecordService'
 export { meetingLogService } from './meetingLogService'
 export { historyService } from './historyService'
+export {
+    transcriptRecordService,
+    isTranscriptionEvent,
+    TranscriptErrorCodes,
+    type TranscriptErrorCode,
+    type TranscriptProcessingResult,
+} from './transcriptRecordService'

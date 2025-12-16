@@ -17,9 +17,8 @@ import { Separator } from '@/components/ui/separator'
 
 const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
-    { name: 'Meetings', href: '/dashboard/meetings', icon: Calendar },
+    // { name: 'Schedule', href: '/dashboard/meetings', icon: Calendar },
     { name: 'History', href: '/dashboard/history', icon: History },
-    { name: 'Transcripts', href: '/dashboard/transcripts', icon: FileText },
 ]
 
 const secondaryNavigation = [

@@ -1,0 +1,16 @@
+// Pending Transcription Event Model
+// Queues transcription events when meeting doesn't exist yet
+// Replayed when meeting.started is processed
+
+model PendingTranscriptionEvent {
+  id         String   @id @default(cuid())
+  roomName   String   // Jitsi room name (used to match meeting later)
+  eventId    String   @unique // Original event ID for idempotency
+  payload    Json     // Full event payload
+  createdAt  DateTime @default(now())
+  retryCount Int      @default(0)
+  expiresAt  DateTime // TTL for cleanup (default: 1 hour after creation)
+
+  @@index([roomName])
+  @@index([expiresAt])
+}

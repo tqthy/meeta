@@ -30,6 +30,8 @@ A Next.js-based video meeting application with real-time collaboration features 
     - `transcript.prisma` - Meeting transcriptions
     - `summary.prisma` - AI-generated meeting summaries
 - **Dashboard**: Meeting management interface with creation and listing
+- **Meeting History**: View past meetings with transcript segments
+- **Unique Meeting IDs**: Each meeting session gets a unique `{roomName}_{uuid}` ID
 - **Room UI**: Video meeting room with participant grid, chat panel, and controls
 
 ### In Progress
@@ -45,8 +47,10 @@ A Next.js-based video meeting application with real-time collaboration features 
 /app                          # Next.js App Router pages
   /(auth)                     # Authentication pages
   /dashboard                  # Dashboard and meeting management
-  /meeting
-    /[meetingId]              # Meeting room UI
+    /history                  # Meeting history list
+    /history/[meetingId]      # Meeting detail with transcript
+  /jitsi-meeting
+    /[meetingId]              # Meeting room UI (Jitsi iframe)
     /create                   # Meeting creation
 
 /src

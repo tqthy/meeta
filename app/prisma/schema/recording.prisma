@@ -33,8 +33,18 @@ model Recording {
   // Processing status (for audio extraction)
   status RecordingStatus @default(PENDING)
 
+  // Storage metadata
+  storagePath String?                // Local filesystem path
+  storageType String  @default("local") // "local" | "s3" | "minio"
+  checksum    String?                // SHA-256 for deduplication
+
+  // Upload metadata
+  uploadedBy String?   // userId who uploaded
+  uploadedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([meetingId, checksum]) // Prevent duplicate uploads
   @@index([meetingId])
 }

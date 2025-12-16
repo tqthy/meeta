@@ -37,6 +37,9 @@ export default function JitsiMeetingPage() {
             `Guest-${Math.random().toString(36).slice(2, 8)}`
     )
 
+    // Only render Jitsi after client-side mount to prevent hydration mismatch
+    const [isMounted, setIsMounted] = useState(false)
+
     // Reference to track if meeting has started
     const meetingStartedRef = useRef(false)
     const localParticipantIdRef = useRef<string | null>(null)
@@ -60,6 +63,10 @@ export default function JitsiMeetingPage() {
             router.replace('/dashboard')
         }
     }, [meetingId, router])
+
+    useEffect(() => {
+        setIsMounted(true)
+    }, [])
 
     /**
      * Setup event listeners for Jitsi API events and emit to database
@@ -122,6 +129,10 @@ export default function JitsiMeetingPage() {
                     )
                 }
 
+                // Emit transcribingStatusChanged(false) to complete transcript
+                // This ensures transcript status changes from PROCESSING to COMPLETED
+                meetingEventEmitter.emitTranscribingStatusChanged(meetingId, false)
+
                 // Emit meeting ended
                 meetingEventEmitter.emitMeetingEnded(meetingId)
             }
@@ -130,8 +141,8 @@ export default function JitsiMeetingPage() {
         // readyToClose - Final cleanup
         api.addListener('readyToClose', () => {
             console.log('[Jitsi Event] readyToClose')
-            // navigate back to create page after meeting closes
-            router.push('/jitsi-meeting/create')
+            // Navigate to dashboard after meeting closes
+            router.push('/dashboard')
         })
 
         // ====================================================================
@@ -139,10 +150,19 @@ export default function JitsiMeetingPage() {
         // ====================================================================
 
         // participantJoined - Remote participant joined
+        // Note: This event fires for ALL participants, including local user
+        // We skip local user since we already emit their join in videoConferenceJoined
         api.addListener(
             'participantJoined',
             (event: ParticipantJoinedEvent) => {
                 console.log('[Jitsi Event] participantJoined:', event)
+                
+                // Skip local participant to avoid duplication
+                if (event.id === localParticipantIdRef.current) {
+                    console.log('[Jitsi Event] Skipping local participant join (already emitted)')
+                    return
+                }
+
                 meetingEventEmitter.emitParticipantJoined({
                     meetingId,
                     participantId: event.id,
@@ -270,6 +290,111 @@ export default function JitsiMeetingPage() {
         api.addListener('incomingMessage', (event: IncomingMessageEvent) => {
             console.log('[Jitsi Event] incomingMessage:', event)
         })
+
+        // ====================================================================
+        // Transcription Events (for transcript persistence)
+        // ====================================================================
+
+        // transcribingStatusChanged - Transcription started/stopped
+        api.addListener(
+            'transcribingStatusChanged',
+            (event: { on: boolean }) => {
+                console.log('[Jitsi Event] transcribingStatusChanged:', event)
+                meetingEventEmitter.emitTranscribingStatusChanged(
+                    meetingId,
+                    event.on
+                )
+            }
+        )
+
+        // transcriptionChunkReceived - New transcription chunk
+        api.addListener(
+            'transcriptionChunkReceived',
+            (rawEvent: {
+                data?: {
+                    language?: string
+                    messageID?: string
+                    participant?: { id?: string; name?: string } | null
+                    final?: string
+                    stable?: string
+                    unstable?: string
+                }
+                // Also handle direct properties for API compatibility
+                language?: string
+                messageID?: string
+                participant?: { id?: string; name?: string } | null
+                final?: string
+                stable?: string
+                unstable?: string
+            }) => {
+                console.log('[Jitsi Event] transcriptionChunkReceived:', rawEvent)
+
+                // Jitsi wraps the event data in a 'data' property - unwrap it
+                const event = rawEvent.data || rawEvent
+
+                // Guard: validate participant exists
+                const participant = event.participant ?? null
+                if (!participant?.id) {
+                    console.warn(
+                        '[Jitsi] Transcript chunk without participant, using SYSTEM'
+                    )
+                }
+
+                // Only emit if there's meaningful text
+                const text = event.final || event.stable
+                if (!text?.trim()) return
+
+                // Determine userId: only local participant has authenticated userId
+                // For remote participants, userId is unknown (they may or may not be logged in)
+                const isLocalParticipant = participant?.id === localParticipantIdRef.current
+                const speakerUserId = isLocalParticipant ? session?.user?.id : undefined
+
+                meetingEventEmitter.emitTranscriptionChunkReceived(
+                    meetingId,
+                    event.language || 'vi-VN',
+                    event.messageID || `msg-${Date.now()}`,
+                    {
+                        id: participant?.id || 'SYSTEM',
+                        displayName: participant?.name || 'System',
+                        userId: speakerUserId, // Only set for authenticated local participant
+                    },
+                    event.final || '',
+                    event.stable || '',
+                    event.unstable || ''
+                )
+            }
+        )
+
+        // recordingStatusChanged - Recording started/stopped
+        api.addListener(
+            'recordingStatusChanged',
+            (event: {
+                on: boolean
+                mode: string
+                error?: string
+                transcription: boolean
+            }) => {
+                console.log('[Jitsi Event] recordingStatusChanged:', event)
+                meetingEventEmitter.emitRecordingStatusChanged(
+                    meetingId,
+                    event.on,
+                    event.mode,
+                    event.transcription,
+                    event.error
+                )
+            }
+        )
+    }
+
+    if (!isMounted) {
+        return (
+            <div
+                style={{ height: '100vh', width: '100%' }}
+                className="text-black flex items-center justify-center"
+            >
+                <p>Loading meeting...</p>
+            </div>
+        )
     }
 
     return (
