@@ -679,7 +679,8 @@ services:
           - SENTRY_RELEASE
           - TZ
       depends_on:
-          - prosody
+        prosody:
+          condition: service_healthy
       networks:
           meet.jitsi:
 
